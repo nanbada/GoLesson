@@ -140,3 +140,12 @@ GoAlimi 관련 지적(4·5번)은 로컬 실코드로 재검증 후 반영 (Noti
 
 추가: 07 §1 파서 규칙 보강 — 교재 미지정 시 활성 교재 1권 자동 매칭, 복수면 진도 단위 힌트로 선택, 과목은 교재에서 유추 (fixture 문장과 정합).
 여전히 안 한 일: 실제 마이그레이션 파일 작성, GoAlimi 코드 수정, 커밋/푸시.
+
+## 후속 3차: 개발 착수 준비 완료 (Claude, 2026-07-04)
+
+- CLAUDE.md·AGENTS.md 최신화: aidd_docs 체계(빌드플랜·픽스처·핸드오프 규약) + 2차 리뷰 확정 사항(claim_outbox RPC 전용, stale 회수, 불변 트리거, parse_logs 예외) 반영. 두 파일 공통 정책 동일 유지.
+- CLAUDE.md에 Orchestration workflow 섹션 추가 (Fable 오케스트레이터 + deep-reasoner(Opus) + fast-worker(Sonnet) + Codex peer. high-stakes = 발송 안전·RLS·GoAlimi 계약·무결성 → 병렬 후 합성). Codex 플러그인 세팅은 2026-07-05 오전 예정 — 세팅 전엔 Codex 단계 생략.
+- `aidd_docs/plans/session-kickoff-prompt.md` 신설: [2] Supabase용·[1] GoAlimi용 완성 프롬프트 + [3]~[6] 범용 템플릿.
+- README.md(진입점)·.gitignore(비밀키 차단) 신설. 스펙 갭 마감: bridge_last_poll_at(03 §7·04·08 §4), 00 문서맵에 aidd_docs 추가.
+- git: main 브랜치 초기 커밋 완료, origin=https://github.com/nanbada/GoLesson.git 연결. **push는 이 환경에 GitHub 인증이 없어 미완 — 사용자 PC에서 `git push -u origin main` 1회 필요.**
+- 다음 세션: session-kickoff-prompt.md §1([2] Supabase) 또는 §2([1] GoAlimi, 해당 저장소에서) 프롬프트로 시작.

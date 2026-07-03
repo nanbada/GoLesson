@@ -27,7 +27,7 @@ GoAlimi (기존 출결 서비스) → 카카오톡 → 학부모
 | `aidd_docs/plans/mvp-build-plan.md` | 구축 순서와 단계별 완료 기준 |
 | `aidd_docs/fixtures/mvp-seed-data.md` | QA seed (docs/10 §3 고정 문장과 짝) |
 | `aidd_docs/memory/internal/` | 세션 간 핸드오프 기록 |
-| `CLAUDE.md` / `AGENTS.md` | AI 에이전트 작업 지침 (Claude Code / Codex — 내용 동일 유지) |
+| `CLAUDE.md` / `AGENTS.md` | AI 에이전트 작업 지침 (Claude Code / Codex — 공통 정책 동일, CLAUDE.md에만 오케스트레이션 섹션 추가) |
 | `web/` `supabase/` `bridge/` | 구현 코드 (예정 — 아직 미작성) |
 
 ## 개발 시작 (새 세션)

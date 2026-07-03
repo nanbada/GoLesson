@@ -55,6 +55,16 @@
 - 파서 변경 시 `docs/10_ACCEPTANCE_TEST.md`의 고정 문장으로 검증한다. 목표는 5요소 매핑 95% 이상.
 - AI는 최후 수단이다. 정형 파싱은 regex+사전 우선, 리포트 수치는 코드가 계산한다.
 
+## Orchestration workflow (Claude Code 전용)
+
+You (Fable) are the orchestrator. Plan, decompose, synthesize. Keep your own context lean — read pointers(문서 경로), delegate the heavy reading.
+
+- Reasoning-heavy phases → **deep-reasoner** (Opus): 아키텍처, RLS/보안 설계, 복잡한 디버깅, 알고리즘 설계. Think thoroughly, return a concise conclusion the orchestrator can act on.
+- Mechanical work → **fast-worker** (Sonnet): boilerplate, 테스트 코드, 포매팅, 단순 수정, 문서 반영. Execute efficiently.
+- **Codex** (`/codex:rescue --background`) is a peer senior engineer with a different perspective. Treat as a peer, not a reviewer. 미설치/미세팅 상태면 이 단계는 생략하고 deep-reasoner로 대체.
+- High-stakes decisions — 이 프로젝트에서는 **발송 안전(BR-500대), RLS/GRANT, GoAlimi 연동 계약(08), 데이터 무결성(1000대)** — task deep-reasoner + Codex on the same problem in parallel, synthesize the best of both **without showing either the other's answer**.
+- 세션 킥오프 프롬프트는 `aidd_docs/plans/session-kickoff-prompt.md` 템플릿을 사용한다.
+
 ## 구조
 
 ```text
