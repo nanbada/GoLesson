@@ -1,0 +1,26 @@
+# dependencies / build
+node_modules/
+.next/
+out/
+dist/
+__pycache__/
+*.pyc
+.venv/
+
+# secrets — 절대 커밋 금지 (CLAUDE.md 절대 규칙 9)
+.env
+.env.*
+bridge_config.json
+
+# supabase local
+supabase/.temp/
+supabase/.branches/
+
+# runtime
+bridge/logs/
+backup/
+*.log
+
+# os / editor
+.DS_Store
+Thumbs.db
