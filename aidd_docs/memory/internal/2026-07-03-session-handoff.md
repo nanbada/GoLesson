@@ -149,3 +149,11 @@ GoAlimi 관련 지적(4·5번)은 로컬 실코드로 재검증 후 반영 (Noti
 - README.md(진입점)·.gitignore(비밀키 차단) 신설. 스펙 갭 마감: bridge_last_poll_at(03 §7·04·08 §4), 00 문서맵에 aidd_docs 추가.
 - git: main 브랜치 초기 커밋 완료, origin=https://github.com/nanbada/GoLesson.git 연결. **push는 이 환경에 GitHub 인증이 없어 미완 — 사용자 PC에서 `git push -u origin main` 1회 필요.**
 - 다음 세션: session-kickoff-prompt.md §1([2] Supabase) 또는 §2([1] GoAlimi, 해당 저장소에서) 프롬프트로 시작.
+
+## 후속 4차: 오케스트레이션 환경 세팅 완료 (Claude, 2026-07-04)
+
+- Codex CLI가 npm 플랫폼 바이너리 누락(ENOENT)으로 깨져 있었음 → `npm install -g @openai/codex@latest` 재설치로 복구 (codex-cli 0.142.5, ChatGPT 로그인 nanbada@gmail.com 유지). [VERIFIED: `codex --version`, setup 스크립트 ready:true]
+- Codex 플러그인 설치 (당초 07-05 예정을 앞당김): `claude plugin marketplace add openai/codex-plugin-cc` → `claude plugin install codex@openai-codex` (user scope, v1.0.5). setup 결과 ready:true, review gate 기본 off(원하면 `/codex:setup --enable-review-gate`).
+- `/codex:*` 커맨드는 **새 세션부터** 로드됨 — 설치 세션에서는 스킬 미노출이 정상.
+- `.claude/agents/` 신설: `deep-reasoner.md`(opus·effort high·Read/Glob/Grep/Bash — 분석·결론 전용, 파일 수정 금지), `fast-worker.md`(sonnet·effort low — 기계적 실행+검증 보고). CLAUDE.md Orchestration의 "Codex 미세팅 시 생략" 단서는 해제 가능.
+- 커밋/푸시 안 함 (`.claude/agents/` 2개 파일 untracked 상태).

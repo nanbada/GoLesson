@@ -16,6 +16,10 @@ bridge_config.json
 supabase/.temp/
 supabase/.branches/
 
+# claude code local (per-developer)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
 # runtime
 bridge/logs/
 backup/

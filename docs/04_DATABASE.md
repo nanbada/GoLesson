@@ -276,21 +276,20 @@ create trigger t_progress_cache after insert on lesson_progress
 -- lessons·payments 수정이력 (audits)
 -- update/delete 시 before/after를 audits에 기록하는 공용 트리거 함수 1개 작성 후
 -- lessons, payments 두 테이블에 부착. (payment_items는 부모 payments 갱신으로 간주)
+-- 트리거 함수는 security definer로 작성한다 — audits는 클라이언트 쓰기 GRANT가 없어
+-- authenticated 트랜잭션에서 발화하면 invoker 권한으로는 insert가 거부된다.
 ```
 
 `updated_at` 자동 갱신 트리거를 lessons, payments, reports, notification_outbox에 부착.
 
 ```sql
--- 발송본 불변 강제 (REQ-1004, BR-405) — 주석이 아니라 DB가 막는다
+-- 발송본 불변 강제 (REQ-1004, BR-405) — 주석이 아니라 DB가 막는다.
+-- 컬럼 열거가 아니라 전체 row jsonb 비교(updated_at 제외) — sent_at·created_by·
+-- created_at 변조까지 차단하고 컬럼 추가에도 안전하다.
 create or replace function trg_reports_immutable() returns trigger as $$
 begin
-  if old.status = 'sent' and (
-       new.body         is distinct from old.body
-    or new.stats        is distinct from old.stats
-    or new.student_id   is distinct from old.student_id
-    or new.period_start is distinct from old.period_start
-    or new.period_end   is distinct from old.period_end
-    or new.status       is distinct from old.status) then
+  if old.status = 'sent'
+     and (to_jsonb(new) - 'updated_at') is distinct from (to_jsonb(old) - 'updated_at') then
     raise exception 'sent report is immutable (REQ-1004)';
   end if;
   return new;
@@ -314,14 +313,21 @@ returns setof notification_outbox as $$
       limit p_limit)
   returning o.*;
 $$ language sql security definer set search_path = public;
--- service_role 전용: revoke execute from public, anon, authenticated.
+
+-- service_role 전용. PUBLIC revoke만 하면 service_role의 기본 실행권도 사라지므로
+-- 명시적으로 재부여한다 (PostgREST는 요청마다 해당 role로 실행).
+revoke execute on function claim_outbox(int) from public, anon, authenticated;
+grant execute on function claim_outbox(int) to service_role;
 ```
 
 ## 4. 뷰
 
+뷰는 `security_invoker = on`으로 만든다 — 기본(owner 실행)이면 postgres 소유 뷰가
+기저 테이블 RLS를 우회한다. 뷰 자체 접근은 별도 GRANT가 필요하다.
+
 ```sql
 -- 월별 수납 집계 (REQ-802)
-create view v_monthly_payments as
+create view v_monthly_payments with (security_invoker = on) as
 select date_trunc('month', p.paid_on)::date as month,
        p.method, i.subject,
        sum(i.amount) as total, count(distinct p.id) as cnt
@@ -331,7 +337,7 @@ group by 1, 2, 3;
 -- 오늘 수업 (REQ-202): 슬롯 단위 상태 매칭 — schedule_slot_id로 join해야
 -- 같은 날 같은 과목 2회(보강, BR-201)에도 슬롯별 상태가 정확하다.
 -- 보강 수업(schedule_slot_id null)은 프론트가 당일 lessons에서 별도 조회해 타임라인에 병합
-create view v_today_lessons as
+create view v_today_lessons with (security_invoker = on) as
 select ss.id as schedule_slot_id, e.student_id, e.subject,
        ss.start_time, ss.duration_min,
        l.id as lesson_id, coalesce(l.status, 'waiting') as status
@@ -341,6 +347,9 @@ join students st on st.id = e.student_id and st.active
 left join lessons l on l.schedule_slot_id = ss.id
                     and l.lesson_date = current_date
 where ss.weekday = extract(isodow from current_date)::int - 1;
+
+-- 클라이언트 조회 허용 (security_invoker라 기저 테이블 RLS가 그대로 적용됨)
+grant select on v_monthly_payments, v_today_lessons to authenticated;
 ```
 
 ## 5. RLS + GRANT (Row Level Security)
@@ -390,6 +399,16 @@ begin
   end loop;
 end $$;
 
+-- 3-1) reports 예외: 발송 완료(status='sent')는 Bridge/service_role 소유(05 §3, BR-500대).
+--      클라이언트는 draft/ready 안에서만 생성·전환 가능 — sent 위조 불가.
+drop policy p_reports_ins on reports;
+drop policy p_reports_upd on reports;
+create policy p_reports_ins on reports for insert to authenticated
+  with check (is_active_teacher() and status in ('draft','ready'));
+create policy p_reports_upd on reports for update to authenticated
+  using (is_active_teacher() and status <> 'sent')
+  with check (is_active_teacher() and status in ('draft','ready'));
+
 -- 4) [C군] 강사 CRUD + delete
 do $$ declare t text;
 begin
@@ -421,10 +440,17 @@ create policy p_parse_logs_upd on parse_logs for update to authenticated
 grant select on profiles to authenticated;
 create policy p_profiles_sel on profiles for select to authenticated
   using (is_active_teacher() or id = auth.uid());
+
+-- 7) service_role 명시 GRANT — BYPASSRLS는 RLS만 우회하고 privilege는 우회하지 않는다.
+--    기본 privilege가 없는 신규 프로젝트에서 Bridge/Edge Functions의 PostgREST 호출
+--    (동기화 upsert, outbox/report 갱신)이 막히지 않도록 명시한다.
+grant usage on schema public to authenticated, service_role;
+grant all on all tables in schema public to service_role;
+grant all on all sequences in schema public to service_role;
 ```
 
 - 모든 테이블 RLS enable. anon에게는 GRANT 없음 + 정책 없음 (전면 차단).
-- Bridge·Edge Functions는 `service_role` 키 사용(RLS·GRANT 우회). 키는 학원 PC와 Supabase secrets에만 존재.
+- Bridge·Edge Functions는 `service_role` 키 사용 — RLS는 우회하지만 GRANT는 우회하지 않으므로 위 7) 명시 GRANT가 필요. 키는 학원 PC와 Supabase secrets에만 존재.
 - `claim_outbox` RPC는 service_role 전용 (execute 권한 revoke).
 - 마이그레이션 검증 절차: anon으로 select 시도 → 거부, authenticated로 students insert 시도 → 거부 확인 (10_ACCEPTANCE T10).
 

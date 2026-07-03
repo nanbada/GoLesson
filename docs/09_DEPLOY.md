@@ -43,15 +43,18 @@
 4. Auth: 이메일 가입 비활성화, 강사 계정 5개 수동 초대
 5. **profiles 시드**: 초대한 각 계정의 auth.users.id로 profiles row insert (name·role·active=true)
    ※ 이 단계를 빠뜨리면 RLS의 is_active_teacher()가 false → 로그인해도 모든 데이터 접근 차단
+   스크립트: supabase/seeds/prod_profiles_seed.sql (이메일→id 매핑, 멱등)
 6. Edge Functions 배포: parse-batch / generate-report / enqueue-report
 7. Secrets 등록: OPENAI_API_KEY, OPENAI_MODEL_PARSE, OPENAI_MODEL_REPORT
 8. app_settings 시드: academy_name, report_greeting, report_closing, goalimi_admin_url
+   스크립트: supabase/seeds/prod_app_settings_seed.sql (값 수정 후 실행, 멱등)
 ```
 
 ### 4.2 프론트 (Cloudflare Pages)
 
 ```
 1. GitHub 저장소 연결 → Pages 프로젝트 생성 (빌드: next build, 출력: out/ — 정적 export)
+   ※ 모노레포이므로 루트 디렉토리를 web/으로 지정. web/ 생성 전([5] 이전)에는 빌드 실패가 정상
 2. env: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
 3. next.config: output 'export' + PWA(manifest·SW — Serwist 권장)
 4. 폰·패드에서 설치(A2HS) 확인

@@ -82,7 +82,7 @@ GoAlimi에 테스트 학생 등록 → 10분 내 GoLesson 표시 / GoAlimi에서
 
 ### T10. 권한·보안
 
-로그아웃 상태 접근 → 로그인 화면 / anon 키로 REST 직접 조회 → 거부(RLS·GRANT) / **authenticated 계정으로 students·parents·attendance insert/update 시도 → 거부** (읽기 전용 사본, 04 §5 A군) / parse_logs: 타인이 만든 행의 status 갱신 → 거부, 본인 행의 status 외 컬럼(raw_text 등) 갱신 → 거부(컬럼 GRANT) / sent 리포트 body update → 거부(트리거) / 비활성 profile 로그인 → 데이터 접근 불가 / claim_outbox RPC를 authenticated로 호출 → 거부(service_role 전용) / service_key가 git 이력·프론트 번들에 없음.
+로그아웃 상태 접근 → 로그인 화면 / anon 키로 REST 직접 조회 → 거부(RLS·GRANT) / **authenticated 계정으로 students·parents·attendance insert/update 시도 → 거부** (읽기 전용 사본, 04 §5 A군) / parse_logs: 타인이 만든 행의 status 갱신 → 거부, 본인 행의 status 외 컬럼(raw_text 등) 갱신 → 거부(컬럼 GRANT) / sent 리포트 body update → 거부(트리거) / **authenticated로 reports.status='sent' 직접 insert/update → 거부** (발송 완료는 Bridge 소유, 04 §5 3-1) / 비활성 profile 로그인 → 데이터 접근 불가 / claim_outbox RPC를 authenticated로 호출 → 거부(service_role 전용) / service_key가 git 이력·프론트 번들에 없음.
 
 ### T11. 계정·바로가기 (REQ-909~910)
 
