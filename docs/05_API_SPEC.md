@@ -85,15 +85,25 @@ Bridge는 PostgREST를 직접 호출한다. 발송 트랜잭션 순서가 핵심
      PostgREST PATCH로는 attempts 증가 같은 연산이 불가하므로 RPC 필수)
 2. GoAlimi POST /api/notify/custom  (08_GOALIMI §3)
    → 응답 id를 즉시 outbox.goalimi_custom_id에 PATCH 저장 (crash 회수용 — 아래)
-3. GoAlimi 상태 폴링 → 종결 시:
+   → 422 no_primary_parent는 접수 자체가 거절된 것(GoAlimi에 행 없음)
+     → outbox {status:'failed', error:'no_primary_parent'} 즉시 종결
+3. GoAlimi 상태 폴링 → GoAlimi status는 pending|sending|sent|failed.
+   pending·sending은 비종결 — 다음 주기 계속 폴링. 종결 시:
    PATCH {status:'sent', sent_at} 또는 {status:'failed', error}
    sent이고 report_id 있으면 reports도 {status:'sent', sent_at} 갱신
    ※ 실패 상태는 outbox만 갖는다 — reports.status에 failed 없음(04 §2 reports 주석)
+   ※ failed 중 error='timeout'|'interrupted'는 "발송 여부 불확실" —
+     실제로는 학부모에게 도달했을 수 있다. UI는 이 두 코드에
+     "수신 확인 후 재발송" 안내를 표시하고, 재발송은 원장이 확인 후
+     새 dedupe_key(…:v2)로만 한다 (BR-503 자동 재발송 금지).
+   ※ 그 외 실패 코드(focus_not_acquired·room_mismatch·out_of_hours·
+     no_primary_parent·precheck_failed 등)는 키 입력 전 확정 실패 —
+     발송되지 않은 것이 확실하므로 새 dedupe_key 재발송이 즉시 안전하다.
 ```
 
 - **stale processing 회수 (이중발송 방지)**: processing 10분 초과 행을 임의로 failed 처리하지 않는다 — GoAlimi에 이미 접수된 뒤 Bridge가 죽었을 수 있고, failed→재전송이 중복 발송이 된다. Bridge는 기동 시와 매 주기에 stale 행을 다음 절차로만 종결한다:
   1. `goalimi_custom_id` 있음 → `GET /api/notify/custom/{id}` 상태 조회 → sent/failed/pending 그대로 반영
-  2. 없음(POST 전 crash) → `POST /api/notify/custom` 재호출 — dedupe_key 멱등이므로 기존 접수가 있으면 그 행이 반환됨 → id 저장 후 1번 절차
+  2. 없음(POST 전 crash) → `POST /api/notify/custom` 재호출 — dedupe_key 멱등이므로 기존 접수가 있으면 그 행이 반환됨 → id 저장 후 1번 절차. **재POST는 절대 재발송을 일으키지 않는다** — GoAlimi는 기존 행 반환만 하고 재큐잉하지 않으며, GoAlimi측 큐 유실 복구는 GoAlimi 재기동 스캔이 전담한다(08 §3.2).
   3. 어느 쪽도 실패(GoAlimi 다운)하면 processing 유지, 다음 주기 재시도. 'bridge_interrupted' 같은 임의 failed 전환 금지.
 - 동기화 계약 (10분 주기) — **GoAlimi 기존 API는 이 용도에 부족**(`/api/students`는 active만 반환, parents 목록·attendance since_id 조회 없음). 08_GOALIMI §3.3의 GoLesson 전용 read API 3개를 사용한다:
   - students: `GET /api/golesson/students` (비활성 포함) → upsert on goalimi_student_id (name/grade/school/active/synced_at)

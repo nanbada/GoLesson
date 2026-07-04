@@ -29,7 +29,7 @@ GoAlimi FastAPI ── 기존 직렬 발송 큐 → kakao_pc.py → 카카오톡
 | .bat ASCII 전용, 서버 재시작은 restart.bat | Bridge 설치 스크립트도 동일 관례 |
 | 경로 하드코딩 금지 (다중 학원 이식성) | Bridge 설정은 `bridge_config.json` 1파일로 외부화 |
 
-## 3. GoAlimi 측 필요 변경 명세 (GoAlimi 프로젝트에서 구현)
+## 3. GoAlimi 측 필요 변경 명세 (✅ 2026-07-04 GoAlimi 프로젝트에서 구현 완료 — mock 모드 T12-1~5 + 재기동 복구 검증 통과)
 
 ### 3.1 신규 테이블 `custom_messages`
 
@@ -40,32 +40,48 @@ CREATE TABLE IF NOT EXISTS custom_messages (
     body        TEXT    NOT NULL,
     dedupe_key  TEXT    NOT NULL UNIQUE,      -- 멱등성 (GoLesson outbox.dedupe_key)
     status      TEXT    NOT NULL DEFAULT 'pending'
-                CHECK(status IN ('pending','sent','failed')),
+                CHECK(status IN ('pending','sending','sent','failed')),
     error       TEXT,
     created_at  TIMESTAMP NOT NULL DEFAULT (datetime('now','localtime')),
     sent_at     TIMESTAMP
 );
 ```
 
+status 흐름: `pending`(접수) → `sending`(물리 발송 직전 기록) → `sent` | `failed`.
+`sending`은 이중 발송 방지의 핵심 마커다 — GoAlimi 재기동 시 `pending`만 재큐잉하고,
+`sending`은 실제 발송 여부가 불확실하므로 `failed(error=interrupted)`로 종결한다(자동 재발송 절대 금지).
+Bridge는 `pending`/`sending`을 모두 비종결 상태로 취급하고 계속 폴링한다.
+
 ### 3.2 신규 발송 엔드포인트 2개 (localhost 전용)
 
 ```
 POST /api/notify/custom
   body: { "student_id": 7, "body": "…리포트 전문…", "dedupe_key": "report:45:v1" }
-  동작: dedupe_key 존재 시 기존 행 반환(200, 멱등). 신규면 custom_messages insert
-        → 기존 발송 큐에 enqueue (검증·시간대 규칙은 출결 알림과 동일 경로)
+  동작: dedupe_key 존재 시 상태 무관하게 기존 행 반환(200, 멱등) — 재큐잉하지 않는다.
+        신규면 대표 학부모 재조회 → custom_messages insert → 기존 발송 큐에 enqueue.
   응답: { "id": 3, "status": "pending" }
+  오류: 404 student_not_found | 422 no_primary_parent (행 미생성 — Bridge는 outbox를
+        recipient_not_found 계열 failed로 종결) | 422 empty_body_or_dedupe_key
 
 GET /api/notify/custom/{id}
-  응답: { "id": 3, "status": "sent"|"failed"|"pending", "error": null, "sent_at": "…" }
+  응답: { "id": 3, "status": "pending"|"sending"|"sent"|"failed", "error": null, "sent_at": "…" }
+  오류: 404 custom_message_not_found
 ```
 
-기존 큐 재사용 시 필수 설계 조건 (실코드 확인 결과, 커밋 fead319 기준):
+**재POST가 재발송을 트리거하지 않는 이유 (설계 확정)**: 발송 완료 직후 상태 기록 전에
+프로세스가 죽으면 행이 `pending`으로 남는데, 이때 재POST가 재큐잉하면 이중 발송이 된다.
+인메모리 큐 유실의 복구는 **GoAlimi 재기동 시 startup 스캔이 전담**한다 — `pending` 행을
+대표 학부모 재조회 후 재큐잉(학부모 없으면 `failed(no_primary_parent)`), `sending` 행은
+`failed(interrupted)` 종결. 유실은 재기동에서만 발생하므로 같은 재기동이 곧 복구다.
 
-1. **결과 갱신 경로 분리**: `NotificationJob.log_id`는 attendance_logs.id 전용이고 큐 워커의 결과 콜백도 attendance 상태만 갱신한다. custom message용 결과 갱신 경로(잡 유형 구분 필드 추가 등)를 함께 구현해야 하며, in-flight 중복 방지 집합(`_in_flight`)이 attendance id와 custom id를 혼동하지 않도록 잡 식별자 공간을 분리한다.
-2. **수신자 조회는 student_id 기준 + 발송 시점 재조회 (확정)**: 기존 체크인 헬퍼는 학생 이름으로 학부모를 조회한다 — 동명이인 오발송 위험. custom 엔드포인트는 반드시 `student_id` → 대표 학부모(is_primary, notify_enabled)로 **발송 시점에 GoAlimi DB에서 직접 조회**한다. GoLesson이 저장한 kakao_name은 UI 표시용 스냅샷일 뿐 POST로 전달하지 않는다 — GoLesson 사본은 최대 10분 지연이라, 마스터(GoAlimi)의 최신 대표 학부모로 보내는 쪽이 오발송 위험이 낮다(BR-701과 일치).
-3. 에러 분류는 GoAlimi 기존 체계 그대로: `recipient_chat_not_found`·`room_mismatch`·`out_of_hours`(영구) / `focus_not_acquired`(환경) / `timeout`(일시, 재시도 금지).
-4. 보안: 엔드포인트 전체 127.0.0.1 요청만 허용.
+기존 큐 재사용 시 필수 설계 조건 (구현 반영 완료 — 2026-07-04 이중 검토(deep-reasoner+Codex) 합성 결과):
+
+1. **결과 갱신 경로 분리**: `NotificationJob`에 `kind`("attendance"|"custom") 필드 추가, in-flight 중복 방지 집합은 `(kind, id)` 튜플 키 — attendance_logs.id와 custom_messages.id의 숫자 충돌이 서로의 발송을 막을 수 없다. 결과 콜백은 main.py 디스패처가 kind별로 분기(custom → custom_messages만 갱신, SSE 없음).
+2. **수신자 조회는 student_id 기준, GoAlimi DB(마스터) 직접 조회 (확정)**: `student_id` → 대표 학부모(is_primary, notify_enabled)를 **접수 시점**(재기동 복구 시엔 **재큐잉 시점**)에 GoAlimi DB에서 재조회한다. 직렬 큐 체류가 수 초라 "발송 시점 재조회"의 의도(GoLesson의 최대 10분 지연 스냅샷 미사용, BR-701)를 충족하며, 큐 코어를 DB 비의존으로 유지한다. GoLesson kakao_name은 POST로 전달하지 않는다.
+3. 에러 분류는 GoAlimi 기존 체계 그대로: `recipient_chat_not_found`·`room_mismatch`·`out_of_hours`(영구) / `focus_not_acquired`(환경) / `timeout`(재시도 금지). 추가 코드: `interrupted`(발송 도중 재기동 — 발송 여부 불확실), `no_primary_parent`(재큐잉 시 학부모 소실), `precheck_failed`(sending 마킹 실패로 발송 스킵).
+4. 보안: 엔드포인트 전체 127.0.0.1 요청만 허용(403 localhost_only). 서버 바인딩(0.0.0.0, 태블릿 체크인용)은 유지 — 라우터 단위 제한.
+5. **custom은 단일 시도 (attendance는 기존 2회 유지)**: 실패 판정이 물리 발송 후의 false negative일 수 있어(발송 후 검증 실패 등), 큐 내부 2차 시도가 학부모 이중 수신이 될 수 있다. 리포트는 이중 발송 방지가 지연보다 우선(BR-503 정신).
+6. **timeout·interrupted는 "발송 여부 불확실"**: `failed`로 종결되지만 실제로는 도달했을 수 있다. UI는 이 두 에러 코드에 "수신 확인 후 재발송" 안내를 표시하고, 재발송은 사람이 새 dedupe_key(v2)로만 한다.
 
 ### 3.3 GoLesson 전용 read API 3개 (신규 — 기존 API로는 부족, 실코드 확인)
 
