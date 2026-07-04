@@ -105,6 +105,8 @@ GoAlimi에 테스트 학생 등록 → 10분 내 GoLesson 표시 / GoAlimi에서
 | 6 | GoAlimi에서 출결 1건 hard delete → 일일 대사 후 | GoLesson attendance에서도 제거, 리포트 출석 수치 일치 |
 | 7 | 발송 도중 Bridge 강제 종료 → 재기동 | stale processing이 goalimi_custom_id 조회로 sent 반영 — 중복 발송 0건 (05_API §3 회수) |
 
+Bridge 로컬 보조 하니스: `python3 -m bridge.tests.integration_bridge --config bridge/bridge_config.json --goalimi-repo /Users/nanbada/projects/GoAlimi --port 8000`. GoAlimi 임시 DB + MockSender + Supabase REST/RPC로 T6 Bridge 항목, T8, T12-6~7을 검증한다. 하니스는 원격 Supabase 실행을 거부하며, 실제 카톡 장문 수신은 Go-Live Checklist의 별도 실측 항목으로 남긴다.
+
 ## 2. Go-Live Checklist
 
 | 항목 | 기준 | 확인 |

@@ -15,11 +15,11 @@
 
 | 단계 | 상태 |
 |---|---|
-| [1] GoAlimi API 확장 | 미완료 — GoAlimi 저장소에서 `/api/notify/custom`, `/api/golesson/*` 구현 필요 |
+| [1] GoAlimi API 확장 | 완료 — GoAlimi `f9df186` push됨. mock 모드 T12-1~5 + 재기동 복구 검증 통과. 장문 900자 실측만 Go-Live 체크리스트로 이월 (08 §3.4) |
 | [2] Supabase 기반 | 완료 — 서울 프로젝트 마이그레이션 적용 + T10 원격 검증 완료 |
 | [3] Edge Functions | 완료 — 3개 함수 원격 배포 + smoke + 로컬 T4/T5 하니스 10/10 통과 |
-| [4] Bridge | 대기 — [1] 완료 후 착수 |
-| [5] Web PWA | 대기 — [3] 완료 상태라 비발송 화면부터 병행 가능 |
+| [4] Bridge | 완료 — `bridge/` 구현, fake client 단위테스트 7개 통과, GoAlimi Mock + 로컬 Supabase 통합 하니스로 T6·T8·T12-6~7 통과 |
+| [5] Web PWA | 다음 — [2]·[3]·[4] 의존성 해소됨 |
 | [6] QA·Go-Live | 대기 |
 
 ## [1] GoAlimi API 확장 — GoAlimi 프로젝트에서 별도 작업
@@ -42,7 +42,7 @@
 ## [4] Bridge
 
 - 범위: claim_outbox 발송 루프(+goalimi_custom_id 저장, stale 회수) · 동기화 3종 · 출결 일일 대사 · 야간 백업 · Task Scheduler 등록 (08 §4, 05 §3, 09 §4.3).
-- 검증: T6 전 항목(발송·멱등·재발송·시간창), T8, T12-6~7 (crash 회수 = 이중발송 0건).
+- 검증: `python3 -m unittest bridge.tests.test_bridge` 통과, `python3 -m bridge.tests.integration_bridge --config bridge/bridge_config.json --goalimi-repo /Users/nanbada/projects/GoAlimi --port 8000` 통과. 통합 하니스 범위는 T6 Bridge 항목, T8, T12-6~7이며 GoAlimi 임시 DB + MockSender를 사용한다.
 
 ## [5] Web PWA
 

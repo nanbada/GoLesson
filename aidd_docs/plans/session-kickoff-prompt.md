@@ -7,11 +7,12 @@
 
 - [2] Supabase 기반 완료: 서울 프로젝트 `dqibhcadjxqmvahcewfn`, 마이그레이션 적용, 원격 T10 통과.
 - [3] Edge Functions 완료: `parse-batch`, `generate-report`, `enqueue-report` 구현·로컬 하니스 10/10·원격 배포·smoke 통과.
-- GitHub `main` 최신 커밋: `f8cb48d` (`feat: Edge Functions 구현 및 발송 안전 검증 추가`).
-- [1] GoAlimi API 확장 미완료: GoAlimi 코드에서 `custom_messages`, `/api/notify/custom`, `/api/golesson/*` 구현 흔적 없음.
-- 다음 의존성 해소 작업: [1] GoAlimi API 확장 → [4] Bridge.
+- [1] GoAlimi API 확장 완료: GoAlimi `f9df186`, mock 모드 T12-1~5 + 재기동 복구 검증 통과.
+- GoLesson 계약 문서 최신 커밋: `11568f7` (`docs: GoAlimi 연동 계약 확정 — sending 상태·재기동 복구·실패 코드 구분 반영`).
+- [4] Bridge 완료: `bridge/` 구현, 단위테스트 7개, GoAlimi Mock + 로컬 Supabase 통합 하니스 T6·T8·T12-6~7 통과.
+- 다음 작업: [5] Web PWA 착수.
 
-## 2. 다음 세션용 — 빌드플랜 [1] GoAlimi API 확장 (GoAlimi 저장소에서 실행)
+## 2. 완료된 단계 참고 — 빌드플랜 [1] GoAlimi API 확장
 
 ```
 Goal: GoLesson 연동용 GoAlimi API 확장 — /Users/nanbada/projects/GoLesson/docs/08_GOALIMI.md §3 명세 구현.
@@ -26,21 +27,37 @@ You're the lead. Delegate reasoning to deep-reasoner, grunt work to fast-worker,
 fresh-perspective problems to Codex. Show me your plan first, then execute.
 ```
 
-## 3. 이후 세션용 — 빌드플랜 [4] Bridge (GoLesson 저장소)
+## 3. 완료된 단계 참고 — 빌드플랜 [4] Bridge
 
 ```
-Goal: aidd_docs/plans/mvp-build-plan.md의 [4] Bridge 완성.
+Goal: aidd_docs/plans/mvp-build-plan.md의 [4] Bridge 완료.
 claim_outbox 발송 루프, GoAlimi 동기화 3종, 출결 일일 대사, 야간 백업, run_bridge.bat/Task Scheduler 문서화.
 완료 기준: docs/10_ACCEPTANCE_TEST.md T6, T8, T12-6~7 로컬/Mock 검증 통과.
 
-Context: 설계 SSOT는 docs/00~11 (01 > 06 > 상세). 직전 상태: aidd_docs/memory/internal/ 최신 핸드오프. [1] GoAlimi API 확장 완료 여부를 실제 GoAlimi 코드로 확인한 뒤 진행.
-핵심 문서: docs/08_GOALIMI.md, docs/05_API_SPEC.md §3, docs/09_DEPLOY.md §4.3.
+Context: 설계 SSOT는 docs/00~11 (01 > 06 > 상세). 직전 상태: aidd_docs/memory/internal/ 최신 핸드오프.
+핵심 문서: docs/08_GOALIMI.md §4·§5, docs/05_API_SPEC.md §3, docs/09_DEPLOY.md §4.3, aidd_docs/plans/handoff-codex-bridge.md.
+검증 명령: `python3 -m unittest bridge.tests.test_bridge`, `python3 -m bridge.tests.integration_bridge --config bridge/bridge_config.json --goalimi-repo /Users/nanbada/projects/GoAlimi --port 8000`.
 
 You're the lead. Delegate reasoning to deep-reasoner, grunt work to fast-worker,
 fresh-perspective problems to Codex. Show me your plan first, then execute.
 ```
 
-## 4. 범용 템플릿
+## 4. 다음 세션용 — 빌드플랜 [5] Web PWA (GoLesson 저장소)
+
+```
+Goal: aidd_docs/plans/mvp-build-plan.md의 [5] Web PWA 구현.
+로그인 → 오늘 → 수업 → 학생 → 빠른입력 → 리포트 → 발송현황 → 수강료 → 교재 → 바로가기 → 설정 화면을 정적 export 유지 조건으로 구현한다.
+완료 기준: docs/10_ACCEPTANCE_TEST.md T1~T3, T5, T7, T9, T11 수동 검증 가능 상태.
+
+Context: 설계 SSOT는 docs/00~11 (01 > 06 > 상세). 프론트는 Next.js 정적 PWA, API Route/SSR/호스팅 전용 기능 금지. 일반 CRUD는 supabase-js + RLS, 서버 로직은 Supabase Edge Functions.
+핵심 문서: docs/02_ARCHITECTURE.md, docs/03_UI_SPEC.md, docs/05_API_SPEC.md, docs/10_ACCEPTANCE_TEST.md.
+직전 상태: aidd_docs/memory/internal/ 최신 핸드오프.
+
+You're the lead. Delegate reasoning to deep-reasoner, grunt work to fast-worker,
+fresh-perspective problems to Codex. Show me your plan first, then execute.
+```
+
+## 5. 범용 템플릿
 
 ```
 Goal: aidd_docs/plans/mvp-build-plan.md의 [N단계] — [산출물 한 줄].

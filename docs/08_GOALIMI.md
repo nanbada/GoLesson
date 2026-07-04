@@ -107,9 +107,12 @@ GET /api/golesson/attendance?since_id={n}&days={m}
 
 ```
 bridge/
-  bridge.py            메인 루프
-  bridge_config.json   supabase_url, service_key, goalimi_base_url, poll_sec, send_window
-  run_bridge.bat       ASCII 전용, %~dp0 관례
+  bridge.py                  메인 루프
+  bridge_config.example.json placeholder only (실제 bridge_config.json은 git 금지)
+  requirements.txt           requests
+  run_bridge.bat             ASCII 전용, %~dp0 관례
+  tests/test_bridge.py       fake client 단위 테스트
+  tests/integration_bridge.py GoAlimi Mock + Supabase 통합 하니스
   (Task Scheduler ONLOGON 등록 — GoAlimi restart.bat 관례 준수, GoAlimi와 별개 태스크)
 ```
 

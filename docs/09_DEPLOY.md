@@ -72,13 +72,16 @@
 
 ```
 1. GoAlimi PC에 bridge/ 폴더 복사 (경로 하드코딩 금지, %~dp0 관례)
-2. bridge_config.json 작성:
+2. Python 의존성 설치: `python -m pip install -r bridge/requirements.txt`
+3. bridge_config.json 작성:
    { "supabase_url": "...", "service_key": "...",
      "goalimi_base_url": "http://127.0.0.1:8000",
      "poll_sec": 60, "send_window": [9, 21], "backup_dir": "backup" }
-3. Task Scheduler ONLOGON 등록 (GoAlimi와 별개 태스크, run_bridge.bat — ASCII 전용)
-4. 검증: 테스트 학생(7707 신성화)으로 리포트 1건 발송 → 운영자 본인 카톡 수신 확인
+4. Task Scheduler ONLOGON 등록 (GoAlimi와 별개 태스크, run_bridge.bat — ASCII 전용)
+5. 검증: 테스트 학생(7707 신성화)으로 리포트 1건 발송 → 운영자 본인 카톡 수신 확인
 ```
+
+개발 검증 보조: 로컬 Supabase + GoAlimi MockSender 환경에서는 `python3 -m bridge.tests.integration_bridge --config bridge/bridge_config.json --goalimi-repo /Users/nanbada/projects/GoAlimi --port 8000`로 T6/T8/T12-6~7을 확인한다. 이 하니스는 GoAlimi 임시 DB를 쓰며 실제 카톡을 발송하지 않고, 원격 Supabase 실행을 거부한다.
 
 주의: service_key는 전권 키다. bridge_config.json 외 어디에도 두지 않으며 git 커밋 금지(.gitignore).
 

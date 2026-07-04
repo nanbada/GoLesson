@@ -1,0 +1,8 @@
+{
+  "supabase_url": "https://PROJECT_REF.supabase.co",
+  "service_key": "PUT_SERVICE_ROLE_KEY_IN_bridge_config.json_ONLY",
+  "goalimi_base_url": "http://127.0.0.1:8000",
+  "poll_sec": 60,
+  "send_window": [9, 21],
+  "backup_dir": "backup"
+}
