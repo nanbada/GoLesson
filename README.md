@@ -28,15 +28,17 @@ GoAlimi (기존 출결 서비스) → 카카오톡 → 학부모
 | `aidd_docs/fixtures/mvp-seed-data.md` | QA seed (docs/10 §3 고정 문장과 짝) |
 | `aidd_docs/memory/internal/` | 세션 간 핸드오프 기록 |
 | `CLAUDE.md` / `AGENTS.md` | AI 에이전트 작업 지침 (Claude Code / Codex — 공통 정책 동일, CLAUDE.md에만 오케스트레이션 섹션 추가) |
-| `web/` `supabase/` `bridge/` | 구현 코드 (예정 — 아직 미작성) |
+| `supabase/` | 마이그레이션·Edge Functions·QA seed/test 구현 완료 |
+| `web/` | Next.js 정적 PWA 구현 예정 |
+| `bridge/` | 학원 PC 워커 구현 예정 |
 
 ## 개발 시작 (새 세션)
 
 1. `CLAUDE.md`(또는 `AGENTS.md`) → `docs/00_PROJECT.md` → `aidd_docs/memory/internal/` 최신 핸드오프 순으로 읽는다.
-2. `aidd_docs/plans/mvp-build-plan.md`의 현재 단계부터 진행한다. 현재 상태: **설계 완료, 구현 착수 전** — 다음 작업은 [1] GoAlimi API 확장(GoAlimi 저장소에서)과 [2] Supabase 마이그레이션(병행 가능).
+2. `aidd_docs/plans/mvp-build-plan.md`의 현재 단계부터 진행한다. 현재 상태: **[2] Supabase 기반 + [3] Edge Functions 완료·원격 배포·GitHub push 완료**. 다음 의존성 해소 작업은 [1] GoAlimi API 확장(GoAlimi 저장소)이며, 그 뒤 [4] Bridge로 진행한다.
 
 ## 안전 규칙 (요약 — 상세는 CLAUDE.md)
 
 - 발송 테스트는 GoAlimi 테스트 계정(출결번호 7707 신성화 = 운영자 카톡)으로만.
 - 비밀키는 커밋 금지: service_role 키는 학원 PC `bridge_config.json`에만, OpenAI 키는 Supabase secrets에만.
-- GoAlimi(`../GoAlimi`)는 읽기 전용 참고 — 이 저장소에서 수정하지 않는다.
+- GoAlimi(`../GoAlimi`) 변경은 필요 시 가능하나, 기존 기능을 제한하지 않는 범위에서 GoAlimi 저장소에서 별도 작업한다.

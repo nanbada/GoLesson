@@ -11,6 +11,17 @@
 
 [1]과 [2]는 병행 가능. [5]는 [2] 완료 후 [3]·[4]와 병행 가능.
 
+## 현재 상태 (2026-07-04)
+
+| 단계 | 상태 |
+|---|---|
+| [1] GoAlimi API 확장 | 미완료 — GoAlimi 저장소에서 `/api/notify/custom`, `/api/golesson/*` 구현 필요 |
+| [2] Supabase 기반 | 완료 — 서울 프로젝트 마이그레이션 적용 + T10 원격 검증 완료 |
+| [3] Edge Functions | 완료 — 3개 함수 원격 배포 + smoke + 로컬 T4/T5 하니스 10/10 통과 |
+| [4] Bridge | 대기 — [1] 완료 후 착수 |
+| [5] Web PWA | 대기 — [3] 완료 상태라 비발송 화면부터 병행 가능 |
+| [6] QA·Go-Live | 대기 |
+
 ## [1] GoAlimi API 확장 — GoAlimi 프로젝트에서 별도 작업
 
 - 범위: `custom_messages` 테이블 + `/api/notify/custom` 2개 + `/api/golesson/*` read 3개 (docs/08 §3).
@@ -26,7 +37,7 @@
 ## [3] Edge Functions
 
 - 범위: parse-batch(07 §1) → generate-report(07 §2) → enqueue-report (05 §2).
-- 검증: fixtures seed 적재 후 고정 문장 20개 T4 (regex 줄 AI 미호출 확인 포함), T5-1~3.
+- 검증: fixtures seed 적재 후 초기 고정 문장 10개 T4 전수 통과(regex 줄 AI 미호출 확인 포함), T5-1~3. 인터뷰로 20개 확정 후 19/20 이상을 최종 기준으로 유지.
 
 ## [4] Bridge
 

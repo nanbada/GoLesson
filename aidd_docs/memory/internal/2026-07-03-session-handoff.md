@@ -2,6 +2,8 @@
 
 이 메모는 Claude/Codex가 다음 세션에서 현재 리뷰 결과를 잃지 않도록 남긴 내부 기록이다.
 
+후속 상태(2026-07-04): 이 문서의 "안 한 일/푸시 미완" 문구는 당시 기록이다. 현재는 [2] Supabase 기반과 [3] Edge Functions가 완료·원격 배포·GitHub push 완료(`f8cb48d`)이며, 최신 상태는 `2026-07-04-session-edge-functions.md`를 우선한다.
+
 ## 이번 세션에서 한 일
 
 - `docs/00_PROJECT.md` ~ `docs/11_GOALIMI_INTEGRATION_STUDY.md` 전체를 리뷰했다.
@@ -148,7 +150,7 @@ GoAlimi 관련 지적(4·5번)은 로컬 실코드로 재검증 후 반영 (Noti
 - `aidd_docs/plans/session-kickoff-prompt.md` 신설: [2] Supabase용·[1] GoAlimi용 완성 프롬프트 + [3]~[6] 범용 템플릿.
 - README.md(진입점)·.gitignore(비밀키 차단) 신설. 스펙 갭 마감: bridge_last_poll_at(03 §7·04·08 §4), 00 문서맵에 aidd_docs 추가.
 - git: main 브랜치 초기 커밋 완료, origin=https://github.com/nanbada/GoLesson.git 연결. **push는 이 환경에 GitHub 인증이 없어 미완 — 사용자 PC에서 `git push -u origin main` 1회 필요.**
-- 다음 세션: session-kickoff-prompt.md §1([2] Supabase) 또는 §2([1] GoAlimi, 해당 저장소에서) 프롬프트로 시작.
+- 당시 다음 세션 후보: session-kickoff-prompt.md의 [2] Supabase 또는 [1] GoAlimi 프롬프트. 후속 현재화 후 다음 실제 후보는 최신 session-kickoff-prompt.md의 [1] GoAlimi API 확장이다.
 
 ## 후속 4차: 오케스트레이션 환경 세팅 완료 (Claude, 2026-07-04)
 

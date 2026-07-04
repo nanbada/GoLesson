@@ -84,7 +84,7 @@
 
 개발 보조 문서(SSOT 아님, `aidd_docs/`): `plans/mvp-build-plan.md`(구축 순서·완료 기준), `fixtures/mvp-seed-data.md`(QA seed — 10 §3 고정 문장과 짝), `memory/internal/`(세션 간 핸드오프 기록 — 세션 시작 시 최신 파일 확인).
 
-## 6. 참고 프로젝트 (읽기 전용)
+## 6. 참고 프로젝트
 
-- `/Users/nanbada/projects/GoAlimi/` — 연동 대상. **코드 수정 금지**, 필요 변경은 08_GOALIMI에 명세만.
+- `/Users/nanbada/projects/GoAlimi/` — 연동 대상. 필요 변경은 GoAlimi 저장소에서 별도 작업 가능하나, 기존 기능을 제한·제약하지 않는 범위여야 한다. GoLesson 저장소에서 GoAlimi 코드를 직접 수정하지 않는다.
 - `/Users/nanbada/projects/Claude-Setup/` — 개발 환경 참고용.

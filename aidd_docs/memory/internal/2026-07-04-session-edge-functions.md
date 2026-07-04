@@ -10,6 +10,7 @@
 - `supabase/tests/t4-t5-functions.sh` — T4 고정문장 10개 전수 매핑 + T5-1/3/5 + enqueue 계약 전체. **로컬 10/10 통과** (regex 6줄에 AI 미개입을 서버 로그로 증명).
 - **원격 배포 완료**: `supabase functions deploy parse-batch generate-report enqueue-report --project-ref dqibhcadjxqmvahcewfn --yes --agent yes`. 원격 함수 3개 모두 `ACTIVE`, `verify_jwt=true`, version=1.
 - **원격 smoke 통과**: 임시 teacher auth/profile 생성 후 함수 3개 인증 호출 검증. `parse-batch=200/student_not_found`, `generate-report=404/student_not_found`, `enqueue-report=404/report_not_found`. 임시 auth/profile/parse_logs cleanup 확인(`remote_smoke_users=0`).
+- **GitHub push 완료**: `f8cb48d` (`feat: Edge Functions 구현 및 발송 안전 검증 추가`)가 `origin/main`에 반영됨.
 
 ## 스펙 수정 결정 (docs 반영됨)
 
@@ -30,10 +31,10 @@
 
 ## 미완료 / 다음 세션
 
-1. **OpenAI 키 (사용자 작업)**: 로컬 `supabase/functions/.env`(gitignored) + `supabase secrets set OPENAI_API_KEY=...` — 키 설정 후 T4의 AI 2줄(6·10) + T5-2 실검증 필요. 모델 env: OPENAI_MODEL_PARSE(기본 gpt-4.1-nano), OPENAI_MODEL_REPORT(기본 gpt-4.1-mini).
-2. 커밋 대기 중 (사용자 요청 시): functions 4파일 + seeds + tests + docs 05/06/07/10 + AGENTS/CLAUDE + 핸드오프.
+1. **다음 의존성**: mvp-build-plan.md [1] GoAlimi API 확장. 2026-07-04 확인 기준 GoAlimi 코드에 `custom_messages`, `/api/notify/custom`, `/api/golesson/*` 구현 흔적 없음.
+2. **OpenAI 키 (사용자 작업)**: 로컬 `supabase/functions/.env`(gitignored) + `supabase secrets set OPENAI_API_KEY=...` — 키 설정 후 T4의 AI 2줄(6·10) + T5-2 실검증 필요. 모델 env: OPENAI_MODEL_PARSE(기본 gpt-4.1-nano), OPENAI_MODEL_REPORT(기본 gpt-4.1-mini).
 3. 사용자 보류: 강사 4명 초대, GoLesson-old(뭄바이) 삭제, app_settings 운영 seed.
-4. 다음 빌드 단계: mvp-build-plan.md [4] Bridge.
+4. 이후 빌드 단계: [1] 완료 후 [4] Bridge. [5] Web PWA는 비발송 화면부터 병행 가능.
 
 ## 재사용 정보
 

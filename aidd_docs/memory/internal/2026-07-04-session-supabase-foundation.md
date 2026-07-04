@@ -1,6 +1,8 @@
 # 2026-07-04 세션 핸드오프 — [2] Supabase 기반 완성
 
-빌드플랜 [2] 완료. 다음 세션은 [3] Edge Functions(이 저장소) 또는 [1] GoAlimi API 확장(GoAlimi 저장소).
+후속 상태(2026-07-04): [3] Edge Functions까지 완료·원격 배포·GitHub push 완료(`f8cb48d`). 최신 현재 상태는 `2026-07-04-session-edge-functions.md`를 우선한다.
+
+빌드플랜 [2] 완료. 당시 다음 후보는 [3] Edge Functions(이 저장소) 또는 [1] GoAlimi API 확장(GoAlimi 저장소)이었다.
 
 ## 산출물
 
@@ -52,9 +54,9 @@ deep-reasoner(Opus)와 Codex를 같은 문제로 병렬 투입(서로 답 비공
 - 이 세션에서 설치: supabase CLI 2.109.0(brew). Docker는 OrbStack — **세션 중 데몬이 저절로 내려간 적 있음**, supabase 명령 실패 시 `orb start` 먼저.
 - 로컬 키(anon/service_role)는 supabase CLI 공용 데모 키 — 비밀 아님. 운영 키는 규칙대로 bridge_config.json·Supabase secrets에만.
 
-## 안 한 일
+## 당시 안 한 일
 
-- 커밋/푸시 (요청 시에만). untracked: `supabase/` 전체, `.claude/`, 이 핸드오프. modified: docs/04·09·10, 2026-07-03 핸드오프.
+- 당시 커밋/푸시 (요청 시에만). 후속 완료: [3] Edge Functions 커밋·push `f8cb48d`.
 - GoLesson-old(뭄바이) 프로젝트 삭제 — 대시보드 수동, 사용자 작업.
 - Auth 설정: 이메일 가입 비활성화(대시보드 수동, 09 §4.1 순서 4) + 강사 초대 → `prod_profiles_seed.sql` 실행(이메일 목록 필요).
 - `prod_app_settings_seed.sql` 실행(실제 학원명 등 값 확정 후).

@@ -50,6 +50,13 @@
    스크립트: supabase/seeds/prod_app_settings_seed.sql (값 수정 후 실행, 멱등)
 ```
 
+현재 상태(2026-07-04):
+- 운영 프로젝트 `dqibhcadjxqmvahcewfn`(서울 ap-northeast-2) 연결.
+- 마이그레이션 4개 원격 적용, 원격 T10 24/24 통과.
+- Edge Functions 3개(`parse-batch`, `generate-report`, `enqueue-report`) 원격 배포 완료, `ACTIVE`, `verify_jwt=true`.
+- 원격 smoke 통과: 인증 teacher로 `parse-batch`, `generate-report`, `enqueue-report` 오류 계약 확인.
+- 미완료: Auth 이메일 가입 비활성화·강사 초대·profiles seed, `OPENAI_API_KEY` secrets 등록, app_settings 운영 seed.
+
 ### 4.2 프론트 (Cloudflare Pages)
 
 ```
