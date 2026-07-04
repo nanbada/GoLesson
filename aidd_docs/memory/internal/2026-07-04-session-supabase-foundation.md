@@ -38,11 +38,12 @@ deep-reasoner(Opus)와 Codex를 같은 문제로 병렬 투입(서로 답 비공
 
 ## 원격 배포 (같은 날 이어서 진행) [VERIFIED]
 
-- 원격 프로젝트: `iokemqsdnhfawvabgxqt` (이름 GoLesson, 사용자가 대시보드에서 생성). CLI `login`+`link`는 사용자 터미널에서 수행(DB 비밀번호는 키체인, 채팅 미노출).
-- **⚠ 리전 ap-south-1(뭄바이)** — docs/09 §4.1은 ap-northeast-2(서울). 리전은 생성 후 변경 불가. 데이터가 없으므로 서울로 재생성 권장(재생성 시: 대시보드 생성 → `supabase link` → `db push` → T10 재실행, 약 10분). 유지/재생성은 사용자 결정 대기.
-- `supabase db push` 완료 — `migration list`로 원격 4/4 기록 확인. push 말미의 pg-delta catalog 캐시 경고는 무해(적용과 무관한 로컬 캐시 단계).
-- **원격 T10 24/24 통과** (t10-access.sh를 API_URL/ANON_KEY/SERVICE_ROLE_KEY env로 원격 실행). 09 §4.1 순서 3(접근 검증) 충족.
+- **운영 원격 프로젝트: `dqibhcadjxqmvahcewfn` (이름 GoLesson, ap-northeast-2 서울)** — 첫 프로젝트가 뭄바이(ap-south-1)로 생성돼 서울로 재생성함. 구 프로젝트는 `GoLesson-old`(`iokemqsdnhfawvabgxqt`)로 개명된 채 남아 있음 → 서울 검증 완료됐으므로 대시보드에서 삭제 권장(Free 플랜 2개 한도 점유 + 유령 스키마).
+- 재링크는 `supabase link --project-ref dqibhcadjxqmvahcewfn`로 비대화식 성공(access token 기반, DB 비밀번호 불필요 — CLI가 login role 자동 초기화). `supabase login`은 최초 1회만 사용자 터미널 필요.
+- `supabase db push` 완료 — `migration list`로 원격 4/4 기록 확인. push 말미의 pg-delta catalog 캐시 경고는 무해(적용과 무관한 로컬 캐시 단계, 로컬 edge_runtime 컨테이너가 이때 죽을 수 있음 → `docker start`로 복구).
+- **원격(서울) T10 24/24 통과** (t10-access.sh를 API_URL/ANON_KEY/SERVICE_ROLE_KEY env로 실행). 09 §4.1 순서 3(접근 검증) 충족.
 - 정리 검증: 실행 후 students·reports·parse_logs·notification_outbox·profiles 전부 0행, auth 사용자 0명.
+- [5] 단계 Cloudflare Pages env: `NEXT_PUBLIC_SUPABASE_URL=https://dqibhcadjxqmvahcewfn.supabase.co` + anon key(신규 프로젝트 것).
 - 원격 키는 legacy JWT(anon/service_role) + 신형(sb_publishable/sb_secret) 공존. T10은 legacy 사용. 키 전문은 채팅·파일에 미기록.
 - Cloudflare Pages: 사용자가 GitHub 연결 완료(프로젝트명 golesson). [5] 단계 전까지 빌드 실패가 정상(09 §4.2).
 
@@ -54,6 +55,6 @@ deep-reasoner(Opus)와 Codex를 같은 문제로 병렬 투입(서로 답 비공
 ## 안 한 일
 
 - 커밋/푸시 (요청 시에만). untracked: `supabase/` 전체, `.claude/`, 이 핸드오프. modified: docs/04·09·10, 2026-07-03 핸드오프.
-- 리전 결정(위 ⚠) — 서울 재생성 여부는 사용자 판단.
+- GoLesson-old(뭄바이) 프로젝트 삭제 — 대시보드 수동, 사용자 작업.
 - Auth 설정: 이메일 가입 비활성화(대시보드 수동, 09 §4.1 순서 4) + 강사 초대 → `prod_profiles_seed.sql` 실행(이메일 목록 필요).
 - `prod_app_settings_seed.sql` 실행(실제 학원명 등 값 확정 후).

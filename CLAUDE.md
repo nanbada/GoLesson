@@ -25,7 +25,7 @@
 ## 절대 규칙
 
 1. 오버엔지니어링 금지. 사용자 5명 규모다. 요구되지 않은 추상화, 설정, 에러처리, 라이브러리, 실시간화, 자동화는 넣지 않는다.
-2. GoAlimi(`/Users/nanbada/projects/GoAlimi/`)와 Claude-Setup은 읽기 전용 참고다. 이 저장소에서 GoAlimi 코드를 수정하지 않는다.
+2. GoAlimi(`/Users/nanbada/projects/GoAlimi/`) 변경은 필요 시 가능하나, 기존 기능을 제한/제약하지 않는 범위여야 한다(2026-07-04 완화 — 현재 1개 학원 사용, 상용 단계 아님). 단, 이 저장소에서 직접 수정하지 않고 GoAlimi 프로젝트에서 별도 작업한다. Claude-Setup은 읽기 전용 참고다.
 3. GoAlimi 연동은 `docs/08_GOALIMI.md`에 명세한다. 실제 GoAlimi 변경은 GoAlimi 프로젝트에서 별도 작업한다.
 4. GoAlimi API, DB, 발송 동작은 추측하지 않는다. 로컬/GitHub `nanbada/GoAlimi`의 실제 코드와 `docs/REFERENCE.md`를 확인한 뒤 의존한다.
 5. 발송 안전을 우선한다. 자동 재발송 금지(BR-503), `dedupe_key` 필수, draft -> ready 검토 우회 금지, sent 본문 불변.
