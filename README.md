@@ -1,44 +1,152 @@
 # GoLesson
 
-소규모 초등 영어/수학 1:1 학원 운영도구. 원장 1명 + 강사 1~3명, 학생 10~30명 규모의 파일럿 — ERP가 아니다.
-"5초 안에 수업 시작, 30초 안에 기록 완료"가 목표. 월 운영비 0원(무료 티어 + 학원 PC).
+Small 1:1 academy operations tool for elementary English/math.
+Target scale: 1 owner, 1-3 teachers, 10-30 students. Not an ERP.
 
-## 구조
+Primary product goal: start a lesson in 5 seconds, finish lesson notes in 30 seconds.
 
+## Current Status
+
+Date: 2026-07-06 KST.
+
+- GoAlimi API extension: complete in the GoAlimi repository.
+- Supabase foundation: complete. Remote T10 RLS/access QA passed `27/27`.
+- Edge Functions: deployed remotely, version 3 active. T4/T5 function harness passed `10/10`.
+- Bridge: implemented. Unit tests and local GoAlimi/Supabase integration harness passed.
+- Web PWA: implemented. UX subagent fixes applied. Typecheck/build/diff-check passed.
+- QA fixture cleanup: prepared, but destructive cleanup requires explicit user approval.
+- Remaining release checks: real phone/academy PC QA for T1/T2/T3, T5-2, T6, T8, T9, T11.
+
+Latest detailed status lives in:
+
+- `aidd_docs/plans/mvp-build-plan.md`
+- `aidd_docs/memory/internal/2026-07-06-session-ux-subagent-review.md`
+- `aidd_docs/memory/internal/2026-07-06-session-t12-bridge-harness.md`
+- `docs/10_ACCEPTANCE_TEST.md`
+
+## Architecture
+
+```text
+Teacher phone/tablet/PC
+        |
+        | HTTPS
+        v
+Next.js static PWA
+        |
+        | supabase-js + RLS
+        v
+Supabase Postgres/Auth/Edge Functions
+        ^
+        | outbound polling only
+        |
+GoLesson Bridge on academy Windows PC
+        |
+        | localhost
+        v
+GoAlimi attendance service -> KakaoTalk -> parents
 ```
-[강사: 폰/패드/PC]
-      │ HTTPS
-Next.js 정적 PWA (Cloudflare Pages)
-      │ supabase-js (RLS)
-Supabase — Postgres + Auth + Edge Functions
-      ▲ 아웃바운드 폴링만
-GoLesson Bridge (학원 윈도우 PC, Python)
-      │ localhost
-GoAlimi (기존 출결 서비스) → 카카오톡 → 학부모
-```
 
-핵심 결정: GoAlimi와 **분리 운영**(기능 흡수 없음, `docs/11` 참조), 학생 마스터 = GoAlimi(단방향 동기화), 진도·과제는 로그 방식, 파서는 regex 우선 + AI fallback, 리포트는 검토(draft→ready) 후에만 발송.
+Core decisions:
 
-## 저장소 안내
+- GoLesson and GoAlimi are operated separately.
+- GoAlimi is the master for students, parents, and attendance.
+- Progress and homework are append-only/history-oriented logs.
+- Parser is regex/dictionary first, AI fallback last.
+- Reports must be reviewed as `draft -> ready` before sending.
+- Sent report bodies are immutable.
 
-| 경로 | 내용 |
+## Repository Map
+
+| Path | Purpose |
 |---|---|
-| `docs/00~11_*.md` | 설계 SSOT (PRD·DB·API·업무규칙·연동·배포·QA) — `docs/00_PROJECT.md`부터 읽기 |
-| `aidd_docs/plans/mvp-build-plan.md` | 구축 순서와 단계별 완료 기준 |
-| `aidd_docs/fixtures/mvp-seed-data.md` | QA seed (docs/10 §3 고정 문장과 짝) |
-| `aidd_docs/memory/internal/` | 세션 간 핸드오프 기록 |
-| `CLAUDE.md` / `AGENTS.md` | AI 에이전트 작업 지침 (Claude Code / Codex — 공통 정책 동일, CLAUDE.md에만 오케스트레이션 섹션 추가) |
-| `supabase/` | 마이그레이션·Edge Functions·QA seed/test 구현 완료 |
-| `web/` | Next.js 정적 PWA 1차 구현 — 운영 env/seed/Auth gate 완료, 실계정 수동 QA 대기 |
-| `bridge/` | 학원 PC 워커 구현 + 단위/통합 하니스 검증 완료 |
+| `web/` | Next.js static PWA |
+| `supabase/` | migrations, Edge Functions, seeds, QA scripts |
+| `bridge/` | academy PC worker for outbox send, sync, backup |
+| `docs/` | design SSOT, `00` through `11` |
+| `aidd_docs/plans/` | build plan and handoff prompts |
+| `aidd_docs/fixtures/` | QA fixture specification |
+| `aidd_docs/memory/internal/` | session handoff history |
+| `AGENTS.md` | Codex/agent working rules |
+| `CLAUDE.md` | Claude working rules, with orchestration details |
 
-## 개발 시작 (새 세션)
+## Start A New Work Session
 
-1. `CLAUDE.md`(또는 `AGENTS.md`) → `docs/00_PROJECT.md` → `aidd_docs/memory/internal/` 최신 핸드오프 순으로 읽는다.
-2. `aidd_docs/plans/mvp-build-plan.md`의 현재 단계부터 진행한다. 현재 상태: **[1] GoAlimi API + [2] Supabase 기반 + [3] Edge Functions + [4] Bridge 완료, [5] Web PWA 운영 QA 전제 완료/수동 QA 대기**.
+1. Read `AGENTS.md` or `CLAUDE.md`.
+2. Read the latest file in `aidd_docs/memory/internal/`.
+3. Check `aidd_docs/plans/mvp-build-plan.md`.
+4. Use `docs/00_PROJECT.md` through `docs/11_GOALIMI_INTEGRATION_STUDY.md` as design SSOT.
 
-## 안전 규칙 (요약 — 상세는 CLAUDE.md)
+Conflict priority:
 
-- 발송 테스트는 GoAlimi 테스트 계정(출결번호 7707 신성화 = 운영자 카톡)으로만.
-- 비밀키는 커밋 금지: service_role 키는 학원 PC `bridge_config.json`에만, OpenAI 키는 Supabase secrets에만.
-- GoAlimi(`../GoAlimi`) 변경은 필요 시 가능하나, 기존 기능을 제한하지 않는 범위에서 GoAlimi 저장소에서 별도 작업한다.
+```text
+docs/01_PRD.md > docs/06_BUSINESS_RULE.md > detailed docs > implementation
+```
+
+## Common Commands
+
+Web:
+
+```bash
+npm --prefix web run typecheck
+npm --prefix web run build
+npm --prefix web run dev -- --hostname 127.0.0.1 --port 3100
+```
+
+Bridge unit tests:
+
+```bash
+python3 -m unittest bridge.tests.test_bridge
+```
+
+Bridge/GoAlimi integration harness uses local Supabase and a GoAlimi mock sender. See:
+
+```text
+aidd_docs/memory/internal/2026-07-06-session-t12-bridge-harness.md
+```
+
+Supabase QA scripts:
+
+```bash
+supabase/tests/t10-access.sh
+supabase/tests/t13-transaction-rpc.sh
+```
+
+QA fixture cleanup preview:
+
+```bash
+supabase db query --local --file supabase/seeds/qa_fixtures_cleanup_preview.sql
+```
+
+Do not run destructive cleanup without user approval.
+
+## Safety Rules
+
+- Do not commit or push unless explicitly asked.
+- Do not put secrets in chat, docs, git, frontend env examples, or browser bundles.
+- Supabase `service_role` belongs only in academy PC Bridge config.
+- OpenAI keys belong only in Supabase secrets.
+- Sending tests must use only GoAlimi test account `7707 신성화`.
+- Do not use `supabase config push` unless explicitly requested and audited.
+- Do not embed GoAlimi in an iframe. Use a new-tab launcher only.
+
+## Release QA
+
+Release judgment follows `docs/10_ACCEPTANCE_TEST.md`.
+
+Already covered by automated/semi-automated QA:
+
+- T4/T5 function harness
+- T10 RLS/access
+- T13 transaction RPC
+- T1/T2/T3/T7 core DB transitions
+- T12 local Bridge/GoAlimi harness
+- Web typecheck/build and UX review fixes
+
+Still requires real device or academy PC:
+
+- T1/T2/T3: phone-based lesson flow and 30-second operation timing
+- T5-2: OpenAI fallback quality with Supabase secret configured
+- T6: real Bridge/GoAlimi/KakaoTalk send and 600-900 character integrity
+- T8: real GoAlimi 10-minute sync
+- T9: mobile PWA install/offline behavior
+- T11: PC/phone sessions and real network behavior for GoAlimi launcher
