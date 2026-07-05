@@ -1,5 +1,7 @@
+import json
 import logging
 import sys
+import tempfile
 import types
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -39,6 +41,7 @@ class FakeSupabase:
         self.patches = []
         self.upserts = []
         self.deletes = []
+        self.select_calls = []
 
     def rpc(self, name, body):
         assert name == "claim_outbox"
@@ -46,7 +49,8 @@ class FakeSupabase:
         self.rpc_rows = []
         return rows
 
-    def select(self, table, params=None):
+    def select(self, table, params=None, headers=None):
+        self.select_calls.append((table, params or {}, headers or {}))
         rows = list(self.tables.get(table, []))
         params = params or {}
         if table == "students" and "id" in params:
@@ -56,7 +60,20 @@ class FakeSupabase:
             rows = sorted(rows, key=lambda row: row["goalimi_log_id"], reverse=True)
             if params.get("limit") == "1":
                 rows = rows[:1]
+        if headers and "Range" in headers:
+            start, end = [int(part) for part in headers["Range"].split("-", 1)]
+            rows = rows[start:end + 1]
         return rows
+
+    def select_all(self, table, params=None, page_size=1000):
+        rows = []
+        offset = 0
+        while True:
+            page = self.select(table, params=params, headers={"Range": f"{offset}-{offset + page_size - 1}"})
+            rows.extend(page)
+            if len(page) < page_size:
+                return rows
+            offset += page_size
 
     def patch(self, table, filters, body):
         self.patches.append((table, filters, body))
@@ -96,14 +113,14 @@ class FakeGoAlimi:
         return [row for row in self.attendance_rows if row["id"] > since_id]
 
 
-def make_bridge(supabase=None, goalimi=None):
+def make_bridge(supabase=None, goalimi=None, backup_dir=None):
     config = BridgeConfig(
         supabase_url="http://supabase.local",
         service_key="not-a-real-key",
         goalimi_base_url="http://127.0.0.1:8000",
         poll_sec=1,
         send_window=(0, 24),
-        backup_dir=Path("/tmp/golesson-bridge-test-backup"),
+        backup_dir=backup_dir or Path("/tmp/golesson-bridge-test-backup"),
     )
     return Bridge(config, supabase or FakeSupabase(), goalimi or FakeGoAlimi(), logging.getLogger("test"))
 
@@ -234,6 +251,40 @@ class BridgeSyncTests(unittest.TestCase):
         self.assertEqual(parents[0]["student_id"], 1)
         self.assertEqual(attendance[0]["student_id"], 1)
         self.assertTrue(attendance[0]["event_at"].endswith("+09:00"))
+
+    def test_sync_parents_deletes_rows_missing_from_goalimi(self):
+        supabase = FakeSupabase()
+        supabase.tables["parents"] = [
+            {"id": 1, "goalimi_parent_id": 7000},
+            {"id": 2, "goalimi_parent_id": 7001},
+        ]
+        goalimi = FakeGoAlimi()
+        goalimi.parent_rows = [{
+            "id": 7001,
+            "student_id": 7707,
+            "kakao_name": "신성화",
+            "relation": "운영자",
+            "is_primary": 1,
+            "notify_enabled": 1,
+        }]
+        bridge = make_bridge(supabase, goalimi)
+
+        bridge.sync_parents()
+
+        self.assertIn(("parents", {"goalimi_parent_id": "eq.7000"}), supabase.deletes)
+
+    def test_backup_reads_past_postgrest_page_limit(self):
+        supabase = FakeSupabase()
+        supabase.tables["parse_logs"] = [{"id": i} for i in range(1005)]
+        with tempfile.TemporaryDirectory() as tmp:
+            bridge = make_bridge(supabase, backup_dir=Path(tmp))
+
+            bridge.backup_all()
+
+            [backup_day] = list(Path(tmp).iterdir())
+            rows = json.loads((backup_day / "parse_logs.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(rows), 1005)
+        self.assertIn(("parse_logs", {"select": "*"}, {"Range": "1000-1999"}), supabase.select_calls)
 
     def test_goalimi_naive_time_is_stored_as_kst(self):
         self.assertEqual(parse_goalimi_local_time("2026-07-04T09:15:32"), "2026-07-04T09:15:32+09:00")

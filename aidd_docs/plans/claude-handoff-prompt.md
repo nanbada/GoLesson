@@ -1,53 +1,61 @@
-# Claude Handoff Prompt — [5] Web PWA 운영 수동 QA
+# Claude Handoff Prompt — GoLesson QA·Go-Live 마감
 
 아래 블록을 Claude Code 새 세션 시작 프롬프트로 사용한다. 토큰 절약용 단축본이며, 세부 근거는 파일 포인터만 따른다.
 
 ```text
-Goal: aidd_docs/plans/mvp-build-plan.md의 [5] Web PWA 실계정 수동 QA 완료.
-운영 Supabase env와 고정 QA fixture가 준비된 상태에서 docs/10_ACCEPTANCE_TEST.md §1의 T1~T3·T5·T7·T9·T11을 실계정/실기기 기준으로 판정한다.
+Goal: GoLesson MVP 출시 전 남은 실기기/운영 PC QA를 끝내고, 결과를 docs/10_ACCEPTANCE_TEST.md §2 Go-Live Checklist와 aidd_docs/memory/internal/에 기록한다.
 
 완료 기준:
-- T1-6: 실폰에서 기록 조작 합계 30초 이내.
-- T2: 진도 경계 저장/거부/완료 처리 기준 통과.
-- T3: take_home 과제 이월, 미완료, 재부여 시 이력 2건 확인.
-- T5: 리포트 draft 3건, 수치가 fixture/실데이터와 일치. OpenAI secret 미설정이면 T5-2 AI 의견은 보류하고 수치·구조까지만 판정.
-- T7: 2026-06 수강료 합계 600,000원 / 카드 400,000원 / 현금 200,000원, 수정 시 audits 전후 기록.
-- T9: 320px 무가로스크롤, 홈 화면 설치, 오프라인 입력 보존.
-- T11: PC·폰 동시 세션 유지, GoAlimi 바로가기 새 탭. 단, 실제 goalimi_admin_url 미입력 상태면 T11-3~4는 설정 입력 후 판정.
+- T1/T2/T3: 실제 폰에서 오늘 수업 시작→진도→과제→완료 흐름을 수행. REQ-902 기록 조작 합계 30초 이내를 직접 측정.
+- T5-2: Supabase secret OPENAI_API_KEY가 설정된 상태에서 AI 의견이 입력 코멘트 밖의 사실·수치를 만들지 않는지 확인. secret 미설정이면 "수치·구조 PASS, AI 의견 보류"로 명시.
+- T6: 테스트 학생 7707 신성화만 사용. Bridge/GoAlimi 실발송, 600~900자 카톡 온전성, dedupe 409, GoAlimi 중지 후 pending 유지, 21시 이후 window를 확인.
+- T8: 실제 GoAlimi 운영 데이터에서 학생 등록/비활성화가 Bridge 10분 주기 안에 GoLesson에 반영되는지 확인.
+- T9: 실제 모바일 홈 화면 설치, standalone 실행, 비행기 모드 입력 보존, 복귀 후 재제출 성공 확인.
+- T11: 같은 계정 PC·폰 동시 세션 유지, GoAlimi 바로가기 새 탭, 학원 밖 네트워크 미도달 안내 확인.
+- QA fixture cleanup: 파일럿 종료 시점에는 preview SQL로 count 확인 후 cleanup SQL 실행 계획만 기록한다. 실제 삭제는 사용자 승인 후 별도 수행.
 
-현재 완료된 선행 게이트(2026-07-05):
-- 운영 Supabase project ref: dqibhcadjxqmvahcewfn, region ap-northeast-2, ACTIVE_HEALTHY.
-- web/.env의 NEXT_PUBLIC_SUPABASE_URL 일치.
-- NEXT_PUBLIC_SUPABASE_ANON_KEY 변수명에는 publishable key(sb_publishable_...) 사용. legacy anon JWT 아님.
-- owner profile 1건 존재.
-- app_settings: academy_name=루트원학원, report_greeting, report_closing 적재. goalimi_admin_url은 실제 학원 PC/LAN 주소 확인 후 설정 화면에서 입력.
-- QA fixture seed 적재 완료: students 4, parents 4, textbooks 5, enrollments 5, student_textbooks 7, schedule_slots 9, lessons 2, lesson_progress 2, homeworks 2, attendance 6, payments 2, payment_items 3.
-- supabase/seeds/qa_fixtures_seed.sql은 재실행해도 카운트 유지되도록 멱등화됨.
-- Auth "Allow new users to sign up" off 확인 완료.
-- publishable key로 anon REST app_settings/students select가 42501 permission denied.
-- npm --prefix web run typecheck 통과, npm --prefix web audit --omit=dev = found 0 vulnerabilities, publishable key 반영 build 통과.
-- web/out 정적 산출물은 http://127.0.0.1:3001 에서 Python http.server로 서빙 중일 수 있음. 안 떠 있으면 `set -a; . ./web/.env; set +a; npm --prefix web run build` 후 `cd web/out && python3 -m http.server 3001 --bind 127.0.0.1`.
-
-주의:
-- 오늘 2026-07-05는 일요일. 고정 fixture 스케줄은 월~금만 있으므로 T1 "오늘 수업 표시"는 2026-07-06 월요일부터 자연 판정하거나, 임시 일요일 스케줄을 추가하면 QA 후 제거한다.
-- supabase config push 금지. 로컬 supabase/config.toml은 dev 설정(enable_signup=true, site_url=http://127.0.0.1:3000)이라 운영 덮어쓰기 위험.
-- service_role / sb_secret 키를 web/.env, 채팅, 문서에 넣지 않는다.
-- Disable JWT-based API keys는 아직 누르지 않는다. Bridge/service_role 사용처를 secret key로 전환한 뒤 별도 검토.
-- 커밋/푸시는 사용자가 요청할 때만.
+이미 완료된 것(2026-07-06 기준):
+- 원격 Supabase project ref: dqibhcadjxqmvahcewfn, region ap-northeast-2.
+- DB migrations local/remote 일치. 20260705130100(restrict log mutation grants), 20260705130200(transactional lesson/payment RPC)까지 원격 적용.
+- Edge Functions parse-batch/generate-report/enqueue-report 원격 배포 완료: version 3, ACTIVE, verify_jwt=true.
+- 원격 자동 QA:
+  - supabase/tests/t10-access.sh: RESULT 27 passed, 0 failed.
+  - supabase/tests/t13-transaction-rpc.sh: RESULT 10 passed, 0 failed.
+  - supabase/tests/t4-t5-functions.sh: RESULT 10 passed, 0 failed.
+  - 별도 원격 RPC 하니스 T1/T2/T3/T7 핵심 DB 전이: RESULT 11 passed, 0 failed.
+- Web PWA: typecheck/build/audit 통과, 원격 env 로그인 smoke 통과.
+- UX subagent 리뷰 반영: 수업 시작 전 폼 숨김, lesson id 반영, 리포트 본문 저장 후 승인/발송, 빠른입력 빈 숫자 방지, PWA navigation network-first. typecheck/build/diff-check 통과.
+- T5 수치·구조, T7 수강료는 수동+DB 대조 통과. T9/T11은 코드레벨 통과, 실기기만 남음.
+- Bridge/GoAlimi 로컬 하니스: T6 Bridge 항목, T8, T12-6~7 PASS. 마지막 라인: PASS Bridge integration harness completed.
 
 필수로 먼저 읽을 파일:
 - CLAUDE.md
-- aidd_docs/memory/internal/2026-07-05-session-web-pwa-qa.md
+- aidd_docs/memory/internal/2026-07-06-session-ux-subagent-review.md
+- aidd_docs/memory/internal/2026-07-06-session-t12-bridge-harness.md
+- aidd_docs/memory/internal/2026-07-05-session-project-review-qa.md
 - docs/10_ACCEPTANCE_TEST.md
-- docs/03_UI_SPEC.md §0, §7
-- aidd_docs/fixtures/mvp-seed-data.md
+- docs/09_DEPLOY.md §4.3
 
 보조 확인 파일:
 - aidd_docs/plans/mvp-build-plan.md
-- docs/09_DEPLOY.md §4.1~§4.2
-- web/app/lib/supabase.ts
-- supabase/seeds/prod_app_settings_seed.sql
-- supabase/seeds/qa_fixtures_seed.sql
+- aidd_docs/fixtures/mvp-seed-data.md
+- docs/03_UI_SPEC.md §0, §7
+- docs/08_GOALIMI.md §3~§5
+- bridge/tests/integration_bridge.py
 
-You're the lead. Show the shortest executable QA plan first, then execute. Do not broaden scope beyond [5] unless a blocker requires it.
+주의:
+- 커밋/푸시는 사용자가 요청할 때만.
+- service_role/sb_secret/OpenAI 키를 채팅, 문서, web/.env, git에 남기지 않는다.
+- supabase config push 금지. 로컬 supabase/config.toml은 운영 Auth 설정을 덮을 수 있다.
+- 발송 테스트는 GoAlimi 테스트 계정 7707 신성화만 사용한다.
+- Bridge 하니스는 원격 Supabase 실행을 거부한다. 실제 발송 QA는 학원 PC/운영 GoAlimi에서 한다.
+- QA fixture 삭제는 `supabase/seeds/qa_fixtures_cleanup_preview.sql` → `supabase/seeds/qa_fixtures_cleanup.sql` 순서. 실행 전 Bridge 중지 또는 GoAlimi 테스트 학생 비활성/삭제가 필요하다.
+- 개발 Mac의 python3가 3.14이면 GoAlimi pydantic-core 호환성 때문에 하니스가 실패한다. Python 3.12 venv 사용. GoAlimi async startup에는 greenlet이 필요했으나 GoAlimi repo는 아직 수정하지 않았다.
+
+실행 방식:
+1. 먼저 위 완료/미완료 상태가 실제 파일·대시보드와 맞는지 확인한다.
+2. 남은 QA만 수행한다. 이미 통과한 자동 QA를 반복하지 않는다.
+3. PASS/FAIL/PARTIAL을 docs/10 §2와 새 memory 파일에 근거와 함께 남긴다.
+
+You're the lead. Show the shortest executable QA plan first, then execute.
 ```

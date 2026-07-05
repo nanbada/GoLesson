@@ -263,6 +263,21 @@ create table audits (
 
 ```sql
 -- 진도 저장 시 student_textbooks 캐시 갱신
+-- from/to 역순 입력은 저장 전 작은 값→큰 값으로 정규화한다(BR-104).
+create or replace function trg_normalize_progress_range() returns trigger as $$
+declare
+  v_from integer;
+  v_to integer;
+begin
+  v_from := least(new.from_value, new.to_value);
+  v_to := greatest(new.from_value, new.to_value);
+  new.from_value := v_from;
+  new.to_value := v_to;
+  return new;
+end $$ language plpgsql;
+create trigger t_progress_normalize_range before insert or update on lesson_progress
+  for each row execute function trg_normalize_progress_range();
+
 create or replace function trg_update_last_position() returns trigger as $$
 begin
   update student_textbooks
@@ -318,6 +333,20 @@ $$ language sql security definer set search_path = public;
 -- 명시적으로 재부여한다 (PostgREST는 요청마다 해당 role로 실행).
 revoke execute on function claim_outbox(int) from public, anon, authenticated;
 grant execute on function claim_outbox(int) to service_role;
+```
+
+```sql
+-- 프론트 수업 저장 RPC: lesson/progress/homework/comment/parse_log 확정을
+-- 한 DB 트랜잭션으로 처리한다. SECURITY INVOKER라 RLS/GRANT는 그대로 적용된다.
+create or replace function save_lesson_log(p_payload jsonb) returns bigint ...
+revoke execute on function save_lesson_log(jsonb) from public, anon;
+grant execute on function save_lesson_log(jsonb) to authenticated;
+
+-- 프론트 수강료 저장 RPC: payments update/insert + payment_items 교체를
+-- 한 DB 트랜잭션으로 처리한다. 중간 실패 시 부모/항목 모두 롤백된다.
+create or replace function save_payment_with_items(p_payload jsonb) returns bigint ...
+revoke execute on function save_payment_with_items(jsonb) from public, anon;
+grant execute on function save_payment_with_items(jsonb) to authenticated;
 ```
 
 ## 4. 뷰
@@ -409,6 +438,11 @@ create policy p_reports_upd on reports for update to authenticated
   using (is_active_teacher() and status <> 'sent')
   with check (is_active_teacher() and status in ('draft','ready'));
 
+-- 3-2) lesson_progress 예외: 진도는 append-only 로그(BR-101)다.
+--      강사는 새 구간을 insert할 수 있지만 기존 구간 overwrite는 금지.
+revoke update on lesson_progress from authenticated;
+drop policy if exists p_lesson_progress_upd on lesson_progress;
+
 -- 4) [C군] 강사 CRUD + delete
 do $$ declare t text;
 begin
@@ -420,6 +454,11 @@ begin
     execute format('create policy p_%s_del on %I for delete to authenticated using (is_active_teacher())', t, t);
   end loop;
 end $$;
+
+-- 4-1) homeworks 예외: 과제 체크/코멘트 update는 허용하지만 hard delete는 금지.
+--      미완료 재부여는 새 homework 행으로 남긴다(BR-305).
+revoke delete on homeworks from authenticated;
+drop policy if exists p_homeworks_del on homeworks;
 
 -- 5) [D군] 시스템 전용: 클라이언트는 조회만 (쓰기는 service_role/Edge Functions)
 do $$ declare t text;

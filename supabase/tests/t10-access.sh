@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# T10 access tests (docs/10_ACCEPTANCE_TEST.md) against the LOCAL supabase stack.
-# Covers: anon blocked / group-A write denial / parse_logs row+column exception /
-# sent-report immutability trigger / inactive profile blocked / claim_outbox
-# service_role-only / no service key in git.
+# T10 access tests (docs/10_ACCEPTANCE_TEST.md) against local Supabase, or a
+# remote project when API_URL, ANON_KEY, and SERVICE_ROLE_KEY are passed as env
+# vars.
+# Covers: anon blocked / group-A write denial / append-only progress + homework
+# delete denial / parse_logs row+column exception / sent-report immutability
+# trigger / inactive profile blocked / claim_outbox service_role-only / no
+# service key in git.
 # Local run: needs a running local stack (supabase start); keys are read from
 # `supabase status`. Remote run: pass API_URL, ANON_KEY, SERVICE_ROLE_KEY as env
 # vars (docs/09 section 4.1 step 3). Creates throwaway auth users and rows via
@@ -65,6 +68,29 @@ expect_deny "auth update students"   "$(code -X PATCH "${AH[@]}" "${JSON[@]}" -d
 expect_deny "auth insert parents"    "$(code -X POST "${AH[@]}" "${JSON[@]}" -d "{\"goalimi_parent_id\":1,\"student_id\":$SID,\"kakao_name\":\"x\"}" "$REST/parents")"
 expect_deny "auth insert attendance" "$(code -X POST "${AH[@]}" "${JSON[@]}" -d "{\"goalimi_log_id\":1,\"student_id\":$SID,\"event_type\":\"IN\",\"event_at\":\"2026-07-04T10:00:00+09:00\"}" "$REST/attendance")"
 expect_deny "auth delete students"   "$(code -X DELETE "${AH[@]}" "$REST/students?id=eq.$SID")"
+
+echo "== 2b) log mutation boundaries: progress append-only, homework no hard delete =="
+R=$(curl -s -X POST "$REST/textbooks" "${SVC[@]}" "${JSON[@]}" -H "Prefer: return=representation" \
+  -d "{\"subject\":\"영어\",\"title\":\"T10교재-$SFX\",\"unit_label\":\"페이지\"}")
+TBID=$(jget "$R" id)
+R=$(curl -s -X POST "$REST/student_textbooks" "${SVC[@]}" "${JSON[@]}" -H "Prefer: return=representation" \
+  -d "{\"student_id\":$SID,\"textbook_id\":$TBID,\"status\":\"active\"}")
+STBID=$(jget "$R" id)
+R=$(curl -s -X POST "$REST/lessons" "${SVC[@]}" "${JSON[@]}" -H "Prefer: return=representation" \
+  -d "{\"student_id\":$SID,\"subject\":\"영어\",\"lesson_date\":\"2026-07-04\",\"status\":\"done\"}")
+LID=$(jget "$R" id)
+R=$(curl -s -X POST "$REST/lesson_progress" "${SVC[@]}" "${JSON[@]}" -H "Prefer: return=representation" \
+  -d "{\"lesson_id\":$LID,\"student_textbook_id\":$STBID,\"from_value\":1,\"to_value\":2}")
+PRID=$(jget "$R" id)
+expect_deny "auth update lesson_progress denied" \
+  "$(code -X PATCH "${AH[@]}" "${JSON[@]}" -d '{"to_value":99}' "$REST/lesson_progress?id=eq.$PRID")"
+R=$(curl -s -X POST "$REST/homeworks" "${SVC[@]}" "${JSON[@]}" -H "Prefer: return=representation" \
+  -d "{\"student_id\":$SID,\"assigned_lesson_id\":$LID,\"subject\":\"영어\",\"description\":\"T10과제\",\"kind\":\"take_home\",\"status\":\"assigned\"}")
+HWID=$(jget "$R" id)
+C=$(code -X PATCH "${AH[@]}" "${JSON[@]}" -d '{"status":"done"}' "$REST/homeworks?id=eq.$HWID")
+[ "$C" = "204" ] && ok "auth update homeworks still allowed" || bad "auth update homeworks" "got $C"
+expect_deny "auth delete homeworks denied" \
+  "$(code -X DELETE "${AH[@]}" "$REST/homeworks?id=eq.$HWID")"
 
 echo "== 3) parse_logs: own-row, status-column-only update =="
 R=$(curl -s -X POST "$REST/parse_logs" "${SVC[@]}" "${JSON[@]}" -H "Prefer: return=representation" \
@@ -132,6 +158,11 @@ echo "== cleanup: remove throwaway rows and users =="
 curl -s -o /dev/null -X DELETE "${SVC[@]}" "$REST/notification_outbox?dedupe_key=eq.report:t10:$SFX"
 curl -s -o /dev/null -X DELETE "${SVC[@]}" "$REST/reports?id=in.($RID,$RID2)"
 curl -s -o /dev/null -X DELETE "${SVC[@]}" "$REST/parse_logs?id=eq.$PLID"
+curl -s -o /dev/null -X DELETE "${SVC[@]}" "$REST/homeworks?id=eq.$HWID"
+curl -s -o /dev/null -X DELETE "${SVC[@]}" "$REST/lesson_progress?id=eq.$PRID"
+curl -s -o /dev/null -X DELETE "${SVC[@]}" "$REST/lessons?id=eq.$LID"
+curl -s -o /dev/null -X DELETE "${SVC[@]}" "$REST/student_textbooks?id=eq.$STBID"
+curl -s -o /dev/null -X DELETE "${SVC[@]}" "$REST/textbooks?id=eq.$TBID"
 curl -s -o /dev/null -X DELETE "${SVC[@]}" "$REST/students?id=eq.$SID"
 for u in $A_ID $B_ID $C_ID; do
   curl -s -o /dev/null -X DELETE "${SVC[@]}" "$AUTH/admin/users/$u"   # cascades to profiles

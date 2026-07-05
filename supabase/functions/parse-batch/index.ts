@@ -55,6 +55,10 @@ type LineResult = {
   parse_log_id?: number;
 };
 
+function orderedRange(fromValue: number, toValue: number): [number, number] {
+  return fromValue <= toValue ? [fromValue, toValue] : [toValue, fromValue];
+}
+
 const RANGE_RE = /(\d+)\s*[-~→>]{1,2}\s*(\d+)/;
 const UNIT_RES: [RegExp, string][] = [
   [/(\d+)\s*단원/, "단원"],
@@ -266,11 +270,16 @@ function parseLine(raw: string, dict: Dict): ParseAttempt {
   let toValue: number | null = null;
   let notation: string | null = null; // null=plain number, else 단원/Day/챕터
   let progressText: string | null = null;
+  const warnings: string[] = [];
 
   const range = rest.match(RANGE_RE);
   if (range) {
     fromValue = parseInt(range[1]);
     toValue = parseInt(range[2]);
+    if (fromValue > toValue) {
+      [fromValue, toValue] = orderedRange(fromValue, toValue);
+      warnings.push(`구간 정리: ${range[1]}→${range[2]}를 ${fromValue}→${toValue}로 저장`);
+    }
     progressText = range[0];
   } else {
     for (const [re, label] of UNIT_RES) {
@@ -323,11 +332,12 @@ function parseLine(raw: string, dict: Dict): ParseAttempt {
   }
 
   // single value: from = last_position (docs/07 section 1.1)
-  let warning: string | undefined;
   if (matched && toValue !== null) {
+    const enteredToValue = toValue;
     if (fromValue === null) fromValue = matched.stb.last_position ?? 0;
+    if (fromValue > toValue) [fromValue, toValue] = orderedRange(fromValue, toValue);
     const lastPos = matched.stb.last_position;
-    if (lastPos !== null && toValue < lastPos) warning = `역행: ${lastPos}→${toValue}`;
+    if (lastPos !== null && enteredToValue < lastPos) warnings.push(`역행: ${lastPos}→${enteredToValue}`);
   }
 
   if (progressText) rest = rest.replace(progressText, " ");
@@ -357,7 +367,7 @@ function parseLine(raw: string, dict: Dict): ParseAttempt {
   return {
     needsAi: false,
     studentId: student.id,
-    out: { method: "regex", ok: true, parsed, ...(warning ? { warning } : {}) },
+    out: { method: "regex", ok: true, parsed, ...(warnings.length > 0 ? { warning: warnings.join(" / ") } : {}) },
   };
 }
 
@@ -451,14 +461,17 @@ async function aiParse(raw: string, knownStudentId: number | null, dict: Dict): 
         : null;
       if (!stb) tb = null; // textbook not assigned to this student -> drop, keep the rest
     }
+    const [fromValue, toValue] = stb && out.from_value !== null && out.to_value !== null
+      ? orderedRange(out.from_value, out.to_value)
+      : [out.from_value, out.to_value];
     const parsed: Parsed = {
       student_id: student.id,
       student_name: student.name,
       subject: out.subject ?? (tb ? tb.subject : null),
       student_textbook_id: stb?.id ?? null,
       textbook_title: tb?.title ?? null,
-      from_value: stb ? out.from_value : null,
-      to_value: stb ? out.to_value : null,
+      from_value: stb ? fromValue : null,
+      to_value: stb ? toValue : null,
       homework: out.homework ?? null,
       comment: out.comment ?? null,
     };

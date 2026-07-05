@@ -34,6 +34,7 @@
 
 - 진도 단위 판정: 매칭된 교재의 unit_label을 따른다. "3단원" 패턴인데 교재 단위가 페이지면 → 단원 값을 memo로 넣고 진도는 미추출 처리(오류 카드).
 - 구간이 아닌 단일 값은 from=last_position, to=값 으로 해석.
+- from/to 역순 구간은 작은 값→큰 값으로 정렬한다. 예: `42-38`은 `38→42`로 반환한다(BR-104).
 - **입력 제한**: 요청당 최대 200줄, 전체 텍스트 20,000자. 초과 시 400 bad_request 응답.
 
 ### 1.2 AI Fallback
@@ -52,7 +53,7 @@
   "homework": "string|null", "comment": "string|null", "confidence": "high|low" }
 ```
 
-- 후처리: student_name·textbook_title을 다시 사전 매칭해 id 확정 (AI가 낸 이름을 그대로 믿지 않는다). 단, regex 단계에서 이미 학생이 확정된 줄이면 AI가 다른 이름을 반환해도 **regex가 확정한 학생 id를 우선**한다. AI 이름 재매칭: 전체 이름 일치 우선, 이름(성 제외) 일치가 복수면 ambiguous_student 에러. OpenAI 호출에 max_tokens 상한 있음(300). confidence=low면 카드에 "확인 필요" 배지.
+- 후처리: student_name·textbook_title을 다시 사전 매칭해 id 확정 (AI가 낸 이름을 그대로 믿지 않는다). 단, regex 단계에서 이미 학생이 확정된 줄이면 AI가 다른 이름을 반환해도 **regex가 확정한 학생 id를 우선**한다. AI 이름 재매칭: 전체 이름 일치 우선, 이름(성 제외) 일치가 복수면 ambiguous_student 에러. from/to 역순이면 작은 값→큰 값으로 정렬한다. OpenAI 호출에 max_tokens 상한 있음(300). confidence=low면 카드에 "확인 필요" 배지.
 - 오류(타임아웃·API 장애): 오류 카드 + parse_logs(status=failed) + [재시도] (REQ-506).
 
 ## 2. 리포트 생성 (Edge Function: generate-report)

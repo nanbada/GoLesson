@@ -1,51 +1,68 @@
-# Codex Handoff — GoLesson [5] Web PWA: QA + 코드리뷰
+# Codex Handoff — GoLesson QA·코드리뷰 최종 상태
 
-GPT Codex 세션 시작 프롬프트로 사용한다. 기본 정책은 저장소 `AGENTS.md`(= CLAUDE.md와 동일 정책, 오케스트레이션 섹션 제외)를 따르고, 이 문서는 그 위에 얹는 작업 브리핑이다. 세부 근거는 본문 붙여넣기 대신 파일 포인터로 따른다.
+GPT Codex 세션 시작 프롬프트로 사용한다. 기본 정책은 저장소 `AGENTS.md`를 따르고, 이 문서는 그 위에 얹는 작업 브리핑이다. 세부 근거는 본문 붙여넣기 대신 파일 포인터로 따른다.
 
 ## 역할
 
-두 가지를 한다. 둘 다 **read-only** — 파일 수정·커밋·푸시·배포·운영 DB 쓰기 금지.
+필요 시 두 가지만 한다.
 
-1. **코드리뷰**: `web/` 정적 PWA와 그것이 호출하는 발송 파이프라인(Edge Functions·Bridge·마이그레이션)을 발송안전·정합·과설계 관점에서 리뷰.
-2. **QA 검증**: `docs/10_ACCEPTANCE_TEST.md` §1 T항목 중 코드/빌드로 검증 가능한 부분을 판정하고, 실기기(사람)만 가능한 부분은 분리해 러브릭으로 넘긴다.
+1. **검증 보조**: 남은 실기기/운영 PC QA(T1/T2/T3 시간 측정, T5-2 OpenAI, T6 실발송, T8 실동기화, T9 실폰, T11 다기기)를 근거 중심으로 판정한다.
+2. **리뷰 보조**: 변경된 코드가 발송안전·RLS/GRANT·정적 PWA 원칙을 깨지 않는지 좁게 리뷰한다.
 
-## 지금까지 검증된 상태 (2026-07-05, 사람 조작 + Claude MCP 검증)
+## 현재 상태 (2026-07-06)
 
-선행 게이트(운영 env·seed·Auth): 운영 프로젝트 `dqibhcadjxqmvahcewfn`(ap-northeast-2) / 공개 key는 publishable key(`sb_publishable_...`) / owner profile 1건 / `app_settings.academy_name=루트원학원` seed / QA fixture 멱등 seed(학생 4·교재 5·스케줄 9·결제 2) / Auth "Allow new users to sign up" off / typecheck·static build·`npm audit --omit=dev` clean. 상세: `aidd_docs/memory/internal/2026-07-05-session-web-pwa-qa.md`.
+- 운영 Supabase: `dqibhcadjxqmvahcewfn`(ap-northeast-2).
+- 공개 env: `NEXT_PUBLIC_SUPABASE_URL` 운영 프로젝트 일치, `NEXT_PUBLIC_SUPABASE_ANON_KEY`에는 publishable key(`sb_publishable_...`) 사용.
+- owner profile 1건, `app_settings.academy_name=루트원학원`, QA fixture 멱등 seed 확인.
+- Auth "Allow new users to sign up" off.
+- typecheck/build/audit 통과.
+- 원격 migrations local/remote 일치. `20260705130100_restrict_log_mutation_grants.sql`, `20260705130200_transactional_lesson_payment_rpc.sql` 원격 적용 완료.
+- Edge Functions 3개 원격 배포 완료: version 3, ACTIVE, verify_jwt=true.
 
-docs/10 §1 T-by-T 원장(정직 원장 — 통과한 것만 통과로):
+## 검증 완료
 
-- **T5 리포트** ✅(수치·구조) — draft 수치 = 실데이터 수기대조 일치. T5-2 AI 의견은 `OPENAI_API_KEY`(Supabase secret) 미설정 시 보류.
-- **T7 수강료** ✅ — 2026-06 월합계 600,000원(카드 400,000 / 현금 200,000) 화면·DB·수기 일치. 수정·삭제 시 audits 전후기록 검증(payments AFTER UPDATE/DELETE 트리거; 클라이언트 삭제로 결제 row_id=4의 before 스냅샷 캡처). 참고: audit before는 payments 행 수준 — 금액은 payment_items(별도 테이블).
-- **T9 모바일·네트워크** — 코드레벨 ✅(320px 무가로스크롤·44px·PWA 설치요건·오프라인 입력보존), 실기기 확인 대기. ⚠ 오프라인 테스트 전 real-env 재빌드 + SW 캐시 클리어 선행.
-- **T11 계정·바로가기** — 코드레벨 ✅(GoAlimi 새 탭 `target=_blank`, iframe 0건, 다중세션 허용), 실기기 확인 대기.
-- **T1 오늘 화면 수업 + REQ-902(30초)** — 대기. 고정 fixture는 월~금이라 2026-07-06 월요일부터 판정.
-- **T2 진도 경계·T3 과제 이월 이력** — 실행 대기(미판정).
+- T4/T5 함수 하니스 원격: `RESULT: 10 passed, 0 failed`.
+- T10 접근/RLS 원격: `RESULT: 27 passed, 0 failed`.
+- T13 트랜잭션 RPC 원격: `RESULT: 10 passed, 0 failed`.
+- T1/T2/T3/T7 핵심 DB 전이 원격 RPC 하니스: `RESULT: 11 passed, 0 failed`.
+- T5 리포트 수치·구조: 실데이터 수기대조 일치. T5-2 AI 의견은 OpenAI secret 필요.
+- T7 수강료: 2026-06 월합계 600,000원(카드 400,000 / 현금 200,000), audits 전후기록 확인.
+- T9/T11 코드레벨: 320px/44px/PWA/offline draft, GoAlimi 새 탭/iframe 0건/다중세션 코드 없음 확인.
+- T12 Bridge/GoAlimi 로컬 하니스: T6 Bridge 항목, T8, T12-6~7 통과. 마지막 라인 `PASS Bridge integration harness completed`.
+- UX subagent 리뷰 반영: 수업 시작 전 폼 숨김, lesson id 반영, 리포트 본문 저장 후 승인/발송, 빠른입력 빈 숫자 방지, PWA navigation network-first. `npm --prefix web run typecheck`, `npm --prefix web run build`, `git diff --check` 통과.
 
-## 이번 세션 발송안전 변경 이력 (리뷰 시 참고 — 재플래그 방지)
+## 남은 실기기/운영 PC QA
 
-- ready 리포트 본문을 `status='ready'`에서 잠그는 트리거(마이그레이션 `20260705120000`)를 잠깐 적용했다가 **같은 날 되돌렸다**(`20260705130000`). 사유: (1) `docs/06` **BR-506**이 ready 본문을 sent 전까지 클라이언트 수정 허용으로 명시(1인 자기검토 워크플로 — ready-lock은 과설계), (2) Bridge는 `notification_outbox.message`(enqueue 시점 스냅샷, `bridge/bridge.py:296`)를 보내고 live `reports.body`를 재독하지 않으므로 승인 후 편집이 발송에 도달하지 못함(무해). 최종 트리거는 sent-only 불변만 강제. 두 마이그레이션이 모두 남은 것은 의도된 정직한 이력.
-- `web/app/page.tsx`에 `edgeError()` 헬퍼 추가(유지) — `supabase.functions.invoke` 오류의 `context`(Response)에서 `{message}`를 풀어 실제 Edge 오류("이미 발송 대기 중입니다." 등)를 사용자에게 노출. generateReports·enqueueReport에서 사용.
+- T1/T2/T3: 실제 폰 손 입력과 30초 조작 시간.
+- T5-2: OpenAI fallback 품질.
+- T6: 실제 Bridge polling, GoAlimi, 카톡 수신, 600~900자 온전성, 21시 이후 window.
+- T8: 실제 GoAlimi 10분 동기화와 비활성화 반영.
+- T9: 홈 화면 설치, 비행기 모드, 모바일 실제 기기.
+- T11: PC·폰 동시 세션과 GoAlimi 새 탭 실제 네트워크.
+- 파일럿 종료 후 QA fixture 정리: `supabase/seeds/qa_fixtures_cleanup_preview.sql` 확인 후 사용자 승인으로 `supabase/seeds/qa_fixtures_cleanup.sql` 실행.
 
-## 코드리뷰 중점 (불변식 대비)
+## 재플래그 금지 이력
 
-- **발송 안전(BR-500s)**: 자동 재발송 금지(BR-503), `dedupe_key` 필수(`report:{id}:v{n}`), draft→ready 검토 우회 금지, sent 본문 불변(트리거 `t_reports_immutable`), enqueue-report 409/422 계약, Bridge는 `claim_outbox` RPC로만 인출.
-- **RLS/GRANT**: `students`·`parents`·`attendance`는 클라이언트 select만(insert/update/delete는 Bridge/service_role 전용). `payments`·`payment_items`·`lessons`·`reports` 등은 클라이언트 쓰기 허용 + audit.
-- **정적 export 유지**: Next API Route·SSR·호스팅 전용 기능 금지. 서버 로직은 Edge Functions 3개(`parse-batch`·`generate-report`·`enqueue-report`)만.
-- **과설계 금지**: 사용자 5명 규모. 요구되지 않은 추상화·설정·실시간화·에러처리 금지.
-- **날짜**: naive local(Asia/Seoul). 프론트 `toISOString()` 하루 밀림 주의.
+- ready 리포트 본문을 `status='ready'`에서 잠그는 트리거를 적용했다가 같은 날 되돌렸다. 사유: `docs/06` BR-506이 ready 본문을 sent 전까지 수정 허용으로 명시한다. 최종 불변 강제는 sent-only다.
+- `lesson_progress` update와 `homeworks` delete는 authenticated에서 금지됐다. 복습은 append-only 로그로 허용한다.
+- 수업/결제 저장은 `save_lesson_log(jsonb)`, `save_payment_with_items(jsonb)` RPC로 트랜잭션화됐다.
+- from/to 역순은 작은 값→큰 값으로 자동 정렬한다.
 
-## 리뷰 대상 파일
+## 우선 읽을 파일
 
-- `web/app/page.tsx`(SPA 전체), `web/app/lib/{supabase,types,date}.ts`, `web/app/globals.css`, `web/public/{manifest.webmanifest,service-worker.js}`
-- `supabase/functions/{parse-batch,generate-report,enqueue-report}/index.ts`
-- `supabase/migrations/*.sql`(특히 `*_functions_triggers`, `*_rls_grant`, `20260705120000`/`20260705130000`)
-- `bridge/bridge.py`(발송·`claim_outbox`·동기화·발송 시간창 09~21)
-
-## 출력
-
-파일:라인 근거를 단 리뷰 소견(심각도순) + QA 판정표(criterion | 코드레벨 verdict PASS/FAIL/PARTIAL | 근거 file:line | 실기기 확인 필요 여부). 발견은 검증 후 보고 — 추측 금지, self-critique 대신 근거 제시.
+- `AGENTS.md`
+- `aidd_docs/memory/internal/2026-07-06-session-t12-bridge-harness.md`
+- `aidd_docs/memory/internal/2026-07-06-session-ux-subagent-review.md`
+- `aidd_docs/memory/internal/2026-07-05-session-project-review-qa.md`
+- `docs/10_ACCEPTANCE_TEST.md`
+- `docs/09_DEPLOY.md §4.3`
+- `docs/04_DATABASE.md §3, §5`
+- `docs/05_API_SPEC.md §2.4, §3`
 
 ## 안전
 
-read-only. 커밋/푸시/배포/운영 DB 쓰기 금지. 발송 테스트는 GoAlimi 테스트 계정만(출결번호 7707 신성화 = 운영자 카톡). `service_role`은 `bridge_config.json`에만, OpenAI 키는 Supabase secrets에만 — 프론트 번들·git·문서 예시에 금지. `supabase config push` 금지(로컬 config.toml은 dev 설정).
+- 커밋/푸시/운영 DB 쓰기는 사용자가 명시 요청할 때만.
+- 발송 테스트는 GoAlimi 테스트 계정만: 출결번호 7707 신성화.
+- `service_role`, `sb_secret`, OpenAI 키를 채팅·문서·프론트 번들·git에 남기지 않는다.
+- `supabase config push` 금지.
+- QA fixture 삭제 전 Bridge 중지 또는 GoAlimi 테스트 학생 비활성/삭제가 필요하다.

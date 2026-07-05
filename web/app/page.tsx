@@ -25,7 +25,7 @@ import {
   X
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { addDays, displayDate, formatKrw, formatTime, monthKey, nowIso, relativeHours, seoulWeekday, todaySeoul } from "./lib/date";
 import { getSupabase, hasSupabaseEnv } from "./lib/supabase";
@@ -72,8 +72,8 @@ type AppActions = {
   saveParsed: (rows: ParseResult[]) => Promise<void>;
   generateReports: (studentIds: Id[], start: string, end: string) => Promise<void>;
   saveReportBody: (reportId: Id, body: string) => Promise<void>;
-  approveReport: (reportId: Id) => Promise<void>;
-  enqueueReport: (report: Report, resend?: boolean) => Promise<void>;
+  approveReport: (reportId: Id, body?: string) => Promise<void>;
+  enqueueReport: (report: Report, resend?: boolean, body?: string) => Promise<void>;
   savePayment: (form: PaymentForm) => Promise<void>;
   deletePayment: (paymentId: Id) => Promise<void>;
   saveTextbook: (form: TextbookForm) => Promise<void>;
@@ -164,29 +164,18 @@ function initialLessonDraft(data: AppData, target: LessonTarget): LessonDraft {
 }
 
 function useStoredState<T>(key: string, initial: T): [T, (next: T | ((prev: T) => T)) => void] {
+  const initialRef = useRef(initial);
   const [value, setValue] = useState<T>(() => {
-    if (typeof window === "undefined") return initial;
-    const saved = window.localStorage.getItem(key);
-    if (!saved) return initial;
-    try {
-      return JSON.parse(saved) as T;
-    } catch {
-      return initial;
-    }
+    return readStoredState(key, initialRef.current);
   });
 
   useEffect(() => {
-    setValue(() => {
-      if (typeof window === "undefined") return initial;
-      const saved = window.localStorage.getItem(key);
-      if (!saved) return initial;
-      try {
-        return JSON.parse(saved) as T;
-      } catch {
-        return initial;
-      }
-    });
-  }, [key, initial]);
+    initialRef.current = initial;
+  }, [initial]);
+
+  useEffect(() => {
+    setValue(readStoredState(key, initialRef.current));
+  }, [key]);
 
   const update = (next: T | ((prev: T) => T)) => {
     setValue((prev) => {
@@ -330,7 +319,7 @@ function GoLessonApp() {
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
-    if (error) setLoginError(error.message);
+    if (error) setLoginError(toLoginMessage(error.message));
   }
 
   async function signOut() {
@@ -361,10 +350,14 @@ function GoLessonApp() {
       setView("today");
     },
     closeLesson: () => setLessonTarget(null),
-    startLesson: (target: LessonTarget) => run(() => startLesson(supabase, data, target), "수업 시작 기록"),
+    startLesson: (target: LessonTarget) =>
+      run(async () => {
+        const lessonId = await startLesson(supabase, data, target);
+        setLessonTarget({ ...target, lessonId });
+      }, "수업 시작 기록"),
     saveLesson: (target: LessonTarget, draft: LessonDraft, onSaved?: () => void) =>
       run(async () => {
-        await saveLesson(supabase, data, session?.user.id ?? null, target, draft);
+        await saveLesson(supabase, data, target, draft);
         onSaved?.();
         setLessonTarget(null);
       }, "수업 기록 저장"),
@@ -392,12 +385,20 @@ function GoLessonApp() {
       if (error) throw error;
       return (response as { results: ParseResult[] }).results;
     },
-    saveParsed: (rows: ParseResult[]) => run(() => saveParsedRows(supabase, data, session?.user.id ?? null, rows), "빠른 입력 저장"),
+    saveParsed: (rows: ParseResult[]) => run(() => saveParsedRows(supabase, data, rows), "빠른 입력 저장"),
     generateReports: (studentIds: Id[], start: string, end: string) => run(() => generateReports(supabase, studentIds, start, end), "리포트 초안 생성"),
     saveReportBody: (reportId: Id, body: string) => run(() => updateReport(supabase, reportId, { body }), "리포트 본문 저장"),
-    approveReport: (reportId: Id) => run(() => updateReport(supabase, reportId, { status: "ready" }), "발송 승인 완료"),
-    enqueueReport: (report: Report, resend = false) => run(() => enqueueReport(supabase, report, resend), "발송 대기열 등록"),
-    savePayment: (form: PaymentForm) => run(() => savePayment(supabase, session?.user.id ?? null, form), "수강료 저장"),
+    approveReport: (reportId: Id, body?: string) =>
+      run(async () => {
+        if (body !== undefined) await updateReport(supabase, reportId, { body });
+        await updateReport(supabase, reportId, { status: "ready" });
+      }, "발송 승인 완료"),
+    enqueueReport: (report: Report, resend = false, body?: string) =>
+      run(async () => {
+        if (body !== undefined && report.status !== "sent") await updateReport(supabase, report.id, { body });
+        await enqueueReport(supabase, report, resend);
+      }, "발송 대기열 등록"),
+    savePayment: (form: PaymentForm) => run(() => savePayment(supabase, form), "수강료 저장"),
     deletePayment: (paymentId: Id) => run(() => deleteRow(supabase, "payments", paymentId), "수강료 삭제"),
     saveTextbook: (form: TextbookForm) => run(() => saveTextbook(supabase, form), "교재 저장"),
     saveSettings: (settings: Record<string, string>) => run(() => saveSettings(supabase, settings), "설정 저장")
@@ -408,8 +409,14 @@ function GoLessonApp() {
   if (loading && data.students.length === 0) return <LoadingScreen label="데이터 불러오는 중" />;
   if (profile && !profile.active) return <DisabledAccount onSignOut={signOut} />;
 
+  const wideLayout = !lessonTarget && (
+    view === "students" ||
+    view === "reports" ||
+    (view === "more" && ["payments", "textbooks", "settings"].includes(moreView))
+  );
+
   return (
-    <main className="app-shell">
+    <main className={wideLayout ? "app-shell wide-shell" : "app-shell"}>
       <header className="topbar">
         <div>
           <p className="eyebrow">{data.settings.academy_name || "GoLesson"}</p>
@@ -456,7 +463,7 @@ function GoLessonApp() {
         <TabButton label="학생" active={view === "students"} icon={<Users size={20} />} onClick={() => { setLessonTarget(null); setView("students"); }} />
         <TabButton label="빠른입력" active={view === "quick"} icon={<Wand2 size={20} />} onClick={() => { setLessonTarget(null); setView("quick"); }} />
         <TabButton label="리포트" active={view === "reports"} icon={<MessageSquareText size={20} />} onClick={() => { setLessonTarget(null); setView("reports"); }} />
-        <TabButton label="더보기" active={view === "more"} icon={<MoreHorizontal size={20} />} onClick={() => { setLessonTarget(null); setView("more"); }} />
+        <TabButton label="더보기" active={view === "more"} icon={<MoreHorizontal size={20} />} onClick={() => { setLessonTarget(null); setMoreView("menu"); setView("more"); }} />
       </nav>
     </main>
   );
@@ -549,6 +556,7 @@ function LessonScreen({ data, target, actions }: { data: AppData; target: Lesson
   const [draft, setDraft] = useStoredState<LessonDraft>(draftKey, initial);
   const selectedAssignment = assignments.find((a) => String(a.id) === draft.textbookId) ?? assignments[0] ?? null;
   const selectedTextbook = selectedAssignment ? textbookFor(data, selectedAssignment.textbook_id) : null;
+  const isStarted = Boolean(lesson?.started_at);
   const fromValue = selectedAssignment?.last_position ?? 0;
   const toNumber = draft.toValue ? Number(draft.toValue) : null;
   const progressWarning = toNumber !== null && selectedAssignment ? progressMessage(selectedAssignment, selectedTextbook, toNumber) : "";
@@ -586,71 +594,83 @@ function LessonScreen({ data, target, actions }: { data: AppData; target: Lesson
             <Clock3 size={18} /> 수업 시작
           </button>
         ) : null}
+        {!isStarted ? (
+          <button type="button" className="ghost-button" onClick={() => {
+            if (!window.confirm("이 수업을 결석/취소로 기록할까요?")) return;
+            const reason = window.prompt("취소 사유", "결석");
+            if (reason) void actions.cancelLesson(target, reason);
+          }}>결석/취소 기록</button>
+        ) : null}
       </section>
 
-      {carryovers.length > 0 ? (
-        <section className="panel">
-          <h3>미체크 집 과제</h3>
-          {carryovers.map((hw) => {
-            const state = draft.carryover[String(hw.id)] ?? { status: "done", comment: "" };
-            return (
-              <div key={hw.id} className="inline-block">
-                <strong>{hw.description}</strong>
-                <Segmented value={state.status} options={HOMEWORK_STATUS.map((o) => o.value)} labels={Object.fromEntries(HOMEWORK_STATUS.map((o) => [o.value, o.label]))} onChange={(value) => updateCarryover(hw.id, { status: value })} />
-                <input value={state.comment} onChange={(e) => updateCarryover(hw.id, { comment: e.target.value })} placeholder="과제 코멘트" />
-              </div>
-            );
-          })}
-        </section>
-      ) : null}
+      {isStarted ? (
+        <>
+          {carryovers.length > 0 ? (
+            <section className="panel">
+              <h3>미체크 집 과제</h3>
+              {carryovers.map((hw) => {
+                const state = draft.carryover[String(hw.id)] ?? { status: "done", comment: "" };
+                return (
+                  <div key={hw.id} className="inline-block">
+                    <strong>{hw.description}</strong>
+                    <Segmented value={state.status} options={HOMEWORK_STATUS.map((o) => o.value)} labels={Object.fromEntries(HOMEWORK_STATUS.map((o) => [o.value, o.label]))} onChange={(value) => updateCarryover(hw.id, { status: value })} />
+                    <input aria-label={`${hw.description} 과제 코멘트`} value={state.comment} onChange={(e) => updateCarryover(hw.id, { comment: e.target.value })} placeholder="과제 코멘트" />
+                  </div>
+                );
+              })}
+            </section>
+          ) : null}
 
-      <section className="panel">
-        <h3>진도</h3>
-        {assignments.length === 0 ? (
-          <Warning text="배정된 활성 교재가 없습니다. 학생 상세 또는 교재 관리에서 먼저 배정하세요." />
-        ) : (
-          <>
-            <label>교재
-              <select value={draft.textbookId} onChange={(e) => setDraft({ ...draft, textbookId: e.target.value })}>
-                {assignments.map((a) => {
-                  const tb = textbookFor(data, a.textbook_id);
-                  return <option key={a.id} value={a.id}>{tb?.title ?? "교재"} ({a.last_position ?? 0}{tb?.unit_label ?? ""})</option>;
-                })}
-              </select>
-            </label>
-            <div className="progress-row">
-              <span>{fromValue}</span>
-              <ChevronRight size={18} />
-              <input inputMode="numeric" value={draft.toValue} onChange={(e) => setDraft({ ...draft, toValue: onlyNumber(e.target.value) })} placeholder={selectedTextbook?.unit_label ?? "to"} />
+          <section className="panel">
+            <h3>진도</h3>
+            {assignments.length === 0 ? (
+              <Warning text="배정된 활성 교재가 없습니다. 학생 상세 또는 교재 관리에서 먼저 배정하세요." />
+            ) : (
+              <>
+                <label>교재
+                  <select value={draft.textbookId} onChange={(e) => setDraft({ ...draft, textbookId: e.target.value })}>
+                    {assignments.map((a) => {
+                      const tb = textbookFor(data, a.textbook_id);
+                      return <option key={a.id} value={a.id}>{tb?.title ?? "교재"} ({a.last_position ?? 0}{tb?.unit_label ?? ""})</option>;
+                    })}
+                  </select>
+                </label>
+                <div className="progress-row">
+                  <span>{fromValue}</span>
+                  <ChevronRight size={18} />
+                  <input aria-label="이번 수업 끝 진도" inputMode="numeric" value={draft.toValue} onChange={(e) => setDraft({ ...draft, toValue: onlyNumber(e.target.value) })} placeholder={selectedTextbook?.unit_label ?? "to"} />
+                </div>
+                {progressWarning ? <p className="form-warning">{progressWarning}</p> : null}
+                <input aria-label="진도 메모" value={draft.memo} onChange={(e) => setDraft({ ...draft, memo: e.target.value })} placeholder="진도 메모(선택)" />
+              </>
+            )}
+          </section>
+
+          <section className="panel">
+            <h3>새 과제(선택)</h3>
+            <textarea aria-label="새 과제 내용" value={draft.homeworkText} onChange={(e) => setDraft({ ...draft, homeworkText: e.target.value })} placeholder="예: 워크북 30-32" rows={2} />
+            <div className="two-col">
+              <Segmented value={draft.homeworkKind} options={["in_class", "take_home"]} labels={{ in_class: "학원내", take_home: "집" }} onChange={(value) => setDraft({ ...draft, homeworkKind: value })} />
+              <Segmented value={draft.homeworkStatus} options={HOMEWORK_STATUS.map((o) => o.value)} labels={Object.fromEntries(HOMEWORK_STATUS.map((o) => [o.value, o.label]))} onChange={(value) => setDraft({ ...draft, homeworkStatus: value })} />
             </div>
-            {progressWarning ? <p className="form-warning">{progressWarning}</p> : null}
-            <input value={draft.memo} onChange={(e) => setDraft({ ...draft, memo: e.target.value })} placeholder="진도 메모(선택)" />
-          </>
-        )}
-      </section>
+            <input aria-label="과제 코멘트" value={draft.homeworkComment} onChange={(e) => setDraft({ ...draft, homeworkComment: e.target.value })} placeholder="과제 코멘트" />
+          </section>
 
-      <section className="panel">
-        <h3>과제</h3>
-        <textarea value={draft.homeworkText} onChange={(e) => setDraft({ ...draft, homeworkText: e.target.value })} placeholder="예: 워크북 30-32" rows={2} />
-        <div className="two-col">
-          <Segmented value={draft.homeworkKind} options={["in_class", "take_home"]} labels={{ in_class: "학원내", take_home: "집" }} onChange={(value) => setDraft({ ...draft, homeworkKind: value })} />
-          <Segmented value={draft.homeworkStatus} options={HOMEWORK_STATUS.map((o) => o.value)} labels={Object.fromEntries(HOMEWORK_STATUS.map((o) => [o.value, o.label]))} onChange={(value) => setDraft({ ...draft, homeworkStatus: value })} />
-        </div>
-        <input value={draft.homeworkComment} onChange={(e) => setDraft({ ...draft, homeworkComment: e.target.value })} placeholder="과제 코멘트" />
-      </section>
+          <section className="panel">
+            <h3>코멘트</h3>
+            <textarea aria-label="수업 코멘트" value={draft.comment} onChange={(e) => setDraft({ ...draft, comment: e.target.value })} placeholder="리포트에 들어갈 수업 코멘트" rows={3} />
+          </section>
 
-      <section className="panel">
-        <h3>코멘트</h3>
-        <textarea value={draft.comment} onChange={(e) => setDraft({ ...draft, comment: e.target.value })} placeholder="리포트에 들어갈 수업 코멘트" rows={3} />
-      </section>
-
-      <div className="sticky-actions">
-        <button type="button" className="danger-button" onClick={() => {
-          const reason = window.prompt("취소 사유", "결석");
-          if (reason) void actions.cancelLesson(target, reason);
-        }}>취소</button>
-        <button type="submit" className="primary-button"><Check size={18} /> 수업 완료</button>
-      </div>
+          <div className="sticky-actions">
+            <button type="submit" className="primary-button"><Check size={18} /> 수업 완료</button>
+          </div>
+          <button type="button" className="cancel-link-button" onClick={() => {
+            if (!window.confirm("이 수업을 결석/취소로 기록할까요?")) return;
+            const reason = window.prompt("취소 사유", "결석");
+            if (reason) void actions.cancelLesson(target, reason);
+          }}>결석/취소 기록</button>
+        </>
+      ) : null}
     </form>
   );
 }
@@ -728,7 +748,9 @@ function StudentDetail({ data, student, actions }: { data: AppData; student: Stu
             {slots.map(({ slot, enrollment }) => (
               <div key={slot.id} className="compact-row">
                 <span>{WEEKDAYS[slot.weekday]} {formatTime(slot.start_time)} · {enrollment.subject} · {slot.duration_min}분</span>
-                <button className="icon-button danger" onClick={() => void actions.deleteSchedule(slot.id)} title="삭제"><X size={16} /></button>
+                <button className="icon-button danger" onClick={() => {
+                  if (window.confirm("이 스케줄을 삭제할까요?")) void actions.deleteSchedule(slot.id);
+                }} title="삭제"><X size={16} /></button>
               </div>
             ))}
           </div>
@@ -752,7 +774,9 @@ function StudentDetail({ data, student, actions }: { data: AppData; student: Stu
               <div key={a.id} className="book-row">
                 <span><strong>{tb?.title ?? "교재"}</strong><em>{a.status} · {a.last_position ?? 0}{tb?.unit_label}</em></span>
                 <span className="bar"><span style={{ width: `${pct}%` }} /></span>
-                {a.status === "active" ? <button className="secondary-button compact" onClick={() => void actions.completeAssignment(a.id)}>완료 처리</button> : null}
+                {a.status === "active" ? <button className="secondary-button compact" onClick={() => {
+                  if (window.confirm(`${tb?.title ?? "교재"}를 완료 처리할까요?`)) void actions.completeAssignment(a.id);
+                }}>완료 처리</button> : null}
               </div>
             );
           })}
@@ -793,6 +817,8 @@ function QuickInputScreen({ data, actions }: { data: AppData; actions: AppAction
   const [results, setResults] = useState<ParseResult[]>([]);
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState("");
+  const okCount = results.filter(isSavableParseResult).length;
+  const errorCount = results.length - okCount;
 
   async function parse() {
     setParsing(true);
@@ -807,23 +833,27 @@ function QuickInputScreen({ data, actions }: { data: AppData; actions: AppAction
     }
   }
 
-  const updateRow = (line: number, patch: Partial<ParseResult["parsed"]>) => {
+  const updateRow = (line: number, patch: Partial<NonNullable<ParseResult["parsed"]>>) => {
     setResults((prev) => prev.map((row) => {
       if (row.line !== line) return row;
+      const parsed = row.parsed;
+      const nextParsed: NonNullable<ParseResult["parsed"]> = {
+        student_id: "student_id" in patch ? patch.student_id ?? 0 : parsed?.student_id ?? 0,
+        student_name: "student_name" in patch ? patch.student_name ?? "" : parsed?.student_name ?? "",
+        subject: "subject" in patch ? patch.subject ?? null : parsed?.subject ?? null,
+        student_textbook_id: "student_textbook_id" in patch ? patch.student_textbook_id ?? null : parsed?.student_textbook_id ?? null,
+        textbook_title: "textbook_title" in patch ? patch.textbook_title ?? null : parsed?.textbook_title ?? null,
+        from_value: "from_value" in patch ? patch.from_value ?? null : parsed?.from_value ?? null,
+        to_value: "to_value" in patch ? patch.to_value ?? null : parsed?.to_value ?? null,
+        homework: "homework" in patch ? patch.homework ?? null : parsed?.homework ?? null,
+        comment: "comment" in patch ? patch.comment ?? null : parsed?.comment ?? null
+      };
+      const canSave = Boolean(nextParsed.student_id && nextParsed.subject && hasRecordableParseContent(nextParsed));
       return {
         ...row,
-        ok: true,
-        parsed: {
-          student_id: patch?.student_id ?? row.parsed?.student_id ?? data.students[0]?.id ?? 0,
-          student_name: patch?.student_name ?? row.parsed?.student_name ?? "",
-          subject: patch?.subject ?? row.parsed?.subject ?? "영어",
-          student_textbook_id: patch?.student_textbook_id ?? row.parsed?.student_textbook_id ?? null,
-          textbook_title: patch?.textbook_title ?? row.parsed?.textbook_title ?? null,
-          from_value: patch?.from_value ?? row.parsed?.from_value ?? null,
-          to_value: patch?.to_value ?? row.parsed?.to_value ?? null,
-          homework: patch?.homework ?? row.parsed?.homework ?? null,
-          comment: patch?.comment ?? row.parsed?.comment ?? null
-        }
+        ok: canSave,
+        error: canSave ? undefined : row.error ?? "학생·과목·기록 내용을 확인하세요.",
+        parsed: nextParsed
       };
     }));
   };
@@ -832,7 +862,7 @@ function QuickInputScreen({ data, actions }: { data: AppData; actions: AppAction
     <div className="stack">
       <section className="panel">
         <h2>텍스트 붙여넣기</h2>
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8} placeholder="민수 영어 브릭스 38-42 숙제 43~45 독해 좋아짐" />
+        <textarea aria-label="빠른 입력 원문" value={text} onChange={(e) => setText(e.target.value)} rows={8} placeholder="민수 영어 브릭스 38-42 숙제 43~45 독해 좋아짐" />
         {error ? <Warning text={error} /> : null}
         <button className="primary-button" onClick={() => void parse()} disabled={!text.trim() || parsing}>
           {parsing ? <Loader2 className="spin" size={18} /> : <Wand2 size={18} />} 파싱하기
@@ -842,28 +872,35 @@ function QuickInputScreen({ data, actions }: { data: AppData; actions: AppAction
       {results.length > 0 ? (
         <section className="panel">
           <h3>결과 카드</h3>
+          <div className={errorCount ? "summary-strip warning-strip" : "summary-strip"}>
+            <span>저장 가능 {okCount}건</span>
+            {errorCount ? <span>확인 필요 {errorCount}건</span> : <span>모두 저장 가능</span>}
+          </div>
+          {errorCount ? <p className="muted">오류 카드는 저장하지 않습니다. 필요한 카드는 학생·과목·교재를 고친 뒤 저장하세요.</p> : null}
           <div className="stack">
             {results.map((row) => (
               <div key={`${row.line}-${row.raw}`} className={row.ok ? "parse-card" : "parse-card error"}>
                 <p className="eyebrow">{row.method ?? "manual"} · {row.raw}</p>
                 {!row.ok ? <strong>오류: {row.error}</strong> : null}
                 <div className="two-col">
-                  <select value={row.parsed?.student_id ?? ""} onChange={(e) => {
-                    const student = findStudent(data, Number(e.target.value));
-                    updateRow(row.line, { student_id: Number(e.target.value), student_name: student?.name ?? "" });
+                  <select aria-label={`${row.line}번 카드 학생`} value={row.parsed?.student_id ?? ""} onChange={(e) => {
+                    const studentId = e.target.value ? Number(e.target.value) : 0;
+                    const student = studentId ? findStudent(data, studentId) : null;
+                    updateRow(row.line, { student_id: studentId, student_name: student?.name ?? "" });
                   }}>
                     <option value="">학생 선택</option>
                     {data.students.filter((s) => s.active).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
-                  <select value={row.parsed?.subject ?? ""} onChange={(e) => updateRow(row.line, { subject: e.target.value as Subject })}>
+                  <select aria-label={`${row.line}번 카드 과목`} value={row.parsed?.subject ?? ""} onChange={(e) => updateRow(row.line, { subject: e.target.value ? e.target.value as Subject : null })}>
                     <option value="">과목</option>
                     {SUBJECTS.map((s) => <option key={s}>{s}</option>)}
                   </select>
                 </div>
-                <select value={row.parsed?.student_textbook_id ?? ""} onChange={(e) => {
-                  const a = data.studentTextbooks.find((x) => x.id === Number(e.target.value));
+                <select aria-label={`${row.line}번 카드 교재`} value={row.parsed?.student_textbook_id ?? ""} onChange={(e) => {
+                  const assignmentId = e.target.value ? Number(e.target.value) : null;
+                  const a = assignmentId ? data.studentTextbooks.find((x) => x.id === assignmentId) : null;
                   const tb = a ? textbookFor(data, a.textbook_id) : null;
-                  updateRow(row.line, { student_textbook_id: Number(e.target.value), textbook_title: tb?.title ?? null, from_value: a?.last_position ?? null });
+                  updateRow(row.line, { student_textbook_id: assignmentId, textbook_title: tb?.title ?? null, from_value: a?.last_position ?? null });
                 }}>
                   <option value="">교재 선택</option>
                   {activeAssignments(data, row.parsed?.student_id ?? 0, row.parsed?.subject ?? null).map((a) => {
@@ -872,17 +909,17 @@ function QuickInputScreen({ data, actions }: { data: AppData; actions: AppAction
                   })}
                 </select>
                 <div className="two-col">
-                  <input inputMode="numeric" value={row.parsed?.from_value ?? ""} onChange={(e) => updateRow(row.line, { from_value: Number(onlyNumber(e.target.value)) })} placeholder="from" />
-                  <input inputMode="numeric" value={row.parsed?.to_value ?? ""} onChange={(e) => updateRow(row.line, { to_value: Number(onlyNumber(e.target.value)) })} placeholder="to" />
+                  <input aria-label={`${row.line}번 카드 시작 진도`} inputMode="numeric" value={row.parsed?.from_value ?? ""} onChange={(e) => updateRow(row.line, { from_value: optionalNumber(e.target.value) })} placeholder="from" />
+                  <input aria-label={`${row.line}번 카드 끝 진도`} inputMode="numeric" value={row.parsed?.to_value ?? ""} onChange={(e) => updateRow(row.line, { to_value: optionalNumber(e.target.value) })} placeholder="to" />
                 </div>
-                <input value={row.parsed?.homework ?? ""} onChange={(e) => updateRow(row.line, { homework: e.target.value })} placeholder="과제" />
-                <input value={row.parsed?.comment ?? ""} onChange={(e) => updateRow(row.line, { comment: e.target.value })} placeholder="코멘트" />
+                <input aria-label={`${row.line}번 카드 과제`} value={row.parsed?.homework ?? ""} onChange={(e) => updateRow(row.line, { homework: e.target.value })} placeholder="과제" />
+                <input aria-label={`${row.line}번 카드 코멘트`} value={row.parsed?.comment ?? ""} onChange={(e) => updateRow(row.line, { comment: e.target.value })} placeholder="코멘트" />
                 {row.warning ? <p className="form-warning">{row.warning}</p> : null}
               </div>
             ))}
           </div>
-          <button className="primary-button" onClick={() => void actions.saveParsed(results)}>
-            <Save size={18} /> {results.filter((r) => r.ok).length}건 일괄 저장
+          <button className="primary-button" onClick={() => void actions.saveParsed(results)} disabled={okCount === 0}>
+            <Save size={18} /> {errorCount ? `정상 ${okCount}건만 저장` : `${okCount}건 저장`}
           </button>
         </section>
       ) : null}
@@ -904,6 +941,11 @@ function ReportsScreen({ data, actions }: { data: AppData; actions: AppActions }
 
   const reports = data.reports.filter((r) => status === "all" || r.status === status);
   const selectedParent = selected ? primaryParent(data, selected.student_id) : null;
+  const confirmSend = (report: Report, resend: boolean) => {
+    const student = studentName(data, report.student_id);
+    const verb = resend ? "재발송" : "카카오톡 발송";
+    if (window.confirm(`${student} 리포트를 ${verb}할까요?`)) void actions.enqueueReport(report, resend, report.status === "sent" ? undefined : body);
+  };
 
   return (
     <div className="split-layout">
@@ -942,13 +984,13 @@ function ReportsScreen({ data, actions }: { data: AppData; actions: AppActions }
           <p className={selectedParent?.notify_enabled ? "muted" : "form-warning"}>
             발송 대상: {selectedParent?.kakao_name ?? "대표 학부모 없음"}
           </p>
-          <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={14} readOnly={selected.status === "sent"} />
+          <textarea aria-label="리포트 본문" value={body} onChange={(e) => setBody(e.target.value)} rows={14} readOnly={selected.status === "sent"} />
           <p className={body.length >= 600 && body.length <= 900 ? "muted" : "form-warning"}>{body.length}자 · 권장 600~900자</p>
           <div className="button-row">
             {selected.status !== "sent" ? <button className="secondary-button" onClick={() => void actions.saveReportBody(selected.id, body)}><Save size={16} /> 저장</button> : null}
-            {selected.status === "draft" ? <button className="primary-button" onClick={() => void actions.approveReport(selected.id)}><Check size={16} /> 발송 승인</button> : null}
-            {selected.status === "ready" ? <button className="primary-button" onClick={() => void actions.enqueueReport(selected, false)} disabled={!selectedParent?.notify_enabled}><Send size={16} /> 카카오톡 발송</button> : null}
-            {selected.status === "sent" ? <button className="secondary-button" onClick={() => void actions.enqueueReport(selected, true)}><Send size={16} /> 재발송</button> : null}
+            {selected.status === "draft" ? <button className="primary-button" onClick={() => void actions.approveReport(selected.id, body)}><Check size={16} /> 저장 후 발송 승인</button> : null}
+            {selected.status === "ready" ? <button className="primary-button" onClick={() => confirmSend(selected, false)} disabled={!selectedParent?.notify_enabled}><Send size={16} /> 저장 후 카카오톡 발송</button> : null}
+            {selected.status === "sent" ? <button className="secondary-button" onClick={() => confirmSend(selected, true)}><Send size={16} /> 재발송</button> : null}
           </div>
         </section>
       ) : null}
@@ -1030,7 +1072,9 @@ function PaymentsScreen({ data, actions, onBack }: { data: AppData; actions: App
               <span><strong>{studentName(data, p.student_id)}</strong><em>{p.paid_on} · {p.method}</em></span>
               <small>{formatKrw(paymentTotal(p))}원</small>
             </button>
-            <button className="icon-button danger" onClick={() => void actions.deletePayment(p.id)} title="삭제"><X size={16} /></button>
+            <button className="icon-button danger" onClick={() => {
+              if (window.confirm("이 결제 기록을 삭제할까요? 삭제 이력은 남습니다.")) void actions.deletePayment(p.id);
+            }} title="삭제"><X size={16} /></button>
           </div>
         ))}
       </section>
@@ -1106,7 +1150,11 @@ function OutboxScreen({ data, actions, onBack }: { data: AppData; actions: AppAc
             </div>
             <div className="outbox-actions">
               <StatusPill status={row.status} />
-              {row.status === "failed" && report ? <button className="secondary-button compact" onClick={() => void actions.enqueueReport(report, report.status === "sent")}>재전송</button> : null}
+              {row.status === "failed" && report ? <button className="secondary-button compact" onClick={() => {
+                if (window.confirm(`${studentName(data, row.student_id)} 리포트를 다시 발송 대기열에 넣을까요?`)) {
+                  void actions.enqueueReport(report, report.status === "sent");
+                }
+              }}>재전송</button> : null}
             </div>
           </section>
         );
@@ -1198,7 +1246,7 @@ function DisabledAccount({ onSignOut }: { onSignOut: () => void }) {
     <main className="login-shell">
       <section className="login-panel">
         <h1>비활성 계정</h1>
-        <p>관리자에게 profiles.active 상태를 확인해 달라고 요청하세요.</p>
+        <p>이 계정은 사용 중지 상태입니다. 원장에게 계정 활성화를 요청하세요.</p>
         <button className="danger-button" onClick={onSignOut}>로그아웃</button>
       </section>
     </main>
@@ -1216,7 +1264,7 @@ function TabButton({ label, icon, active, onClick }: { label: string; icon: Reac
 function Segmented<T extends string>({ value, options, labels, onChange }: { value: T; options: readonly T[]; labels?: Record<string, string>; onChange: (value: T) => void }) {
   return (
     <div className="segmented">
-      {options.map((option) => <button type="button" key={option} className={option === value ? "active" : ""} onClick={() => onChange(option)}>{labels?.[option] ?? option}</button>)}
+      {options.map((option) => <button type="button" key={option} className={option === value ? "active" : ""} aria-pressed={option === value} onClick={() => onChange(option)}>{labels?.[option] ?? option}</button>)}
     </div>
   );
 }
@@ -1254,96 +1302,78 @@ function StatsSummary({ report }: { report: Report }) {
   );
 }
 
-async function startLesson(supabase: ReturnType<typeof getSupabase>, data: AppData, target: LessonTarget) {
+async function startLesson(supabase: ReturnType<typeof getSupabase>, data: AppData, target: LessonTarget): Promise<Id> {
   if (target.lessonId) {
     const { error } = await supabase.from("lessons").update({ started_at: nowIso(), status: "in_progress" }).eq("id", target.lessonId);
     if (error) throw error;
-    return;
+    return target.lessonId;
   }
   const student = findStudent(data, target.studentId);
   if (!student) throw new Error("학생을 찾을 수 없습니다.");
-  const { error } = await supabase.from("lessons").insert({
-    student_id: target.studentId,
-    subject: target.subject,
-    schedule_slot_id: target.scheduleSlotId,
-    lesson_date: todaySeoul(),
-    started_at: nowIso(),
-    status: "in_progress"
-  });
-  if (error) throw error;
+  const { data: row, error } = await supabase
+    .from("lessons")
+    .insert({
+      student_id: target.studentId,
+      subject: target.subject,
+      schedule_slot_id: target.scheduleSlotId,
+      lesson_date: todaySeoul(),
+      started_at: nowIso(),
+      status: "in_progress"
+    })
+    .select("id")
+    .single();
+  if (error || !row) throw error ?? new Error("수업 시작 기록 실패");
+  return row.id as number;
 }
 
-async function ensureLesson(supabase: ReturnType<typeof getSupabase>, userId: string | null, target: LessonTarget): Promise<Id> {
-  if (target.lessonId) return target.lessonId;
-  const { data, error } = await supabase.from("lessons").insert({
-    student_id: target.studentId,
-    teacher_id: userId,
-    subject: target.subject,
-    schedule_slot_id: target.scheduleSlotId,
-    lesson_date: todaySeoul(),
-    started_at: nowIso(),
-    status: "in_progress"
-  }).select("id").single();
-  if (error || !data) throw error ?? new Error("수업 생성 실패");
-  return Number(data.id);
-}
-
-async function saveLesson(supabase: ReturnType<typeof getSupabase>, data: AppData, userId: string | null, target: LessonTarget, draft: LessonDraft) {
-  const lessonId = await ensureLesson(supabase, userId, target);
-  const progressInserts = [];
+async function saveLesson(supabase: ReturnType<typeof getSupabase>, data: AppData, target: LessonTarget, draft: LessonDraft) {
+  let progress: Record<string, unknown> | null = null;
   if (draft.textbookId && draft.toValue) {
     const assignment = data.studentTextbooks.find((a) => a.id === Number(draft.textbookId));
     if (assignment?.status === "completed") throw new Error("완료된 교재에는 진도를 입력할 수 없습니다.");
-    progressInserts.push({
-      lesson_id: lessonId,
-      student_textbook_id: Number(draft.textbookId),
-      from_value: assignment?.last_position ?? 0,
-      to_value: Number(draft.toValue),
-      memo: draft.memo || null
-    });
-  }
-  if (progressInserts.length > 0) {
-    const { error } = await supabase.from("lesson_progress").insert(progressInserts);
-    if (error) throw error;
-    const assignment = data.studentTextbooks.find((a) => a.id === Number(draft.textbookId));
     const tb = assignment ? textbookFor(data, assignment.textbook_id) : null;
-    if (assignment && tb?.total_units && Number(draft.toValue) >= tb.total_units) {
-      const ok = window.confirm(`${tb.title} 완료 처리할까요?`);
-      if (ok) await completeAssignment(supabase, assignment.id);
+    const [fromValue, toValue] = orderedRange(assignment?.last_position ?? 0, Number(draft.toValue));
+    const completeAssignmentNow = Boolean(
+      assignment &&
+      tb?.total_units &&
+      toValue >= tb.total_units &&
+      window.confirm(`${tb.title} 완료 처리할까요?`)
+    );
+    progress = {
+      student_textbook_id: Number(draft.textbookId),
+      from_value: fromValue,
+      to_value: toValue,
+      memo: draft.memo || null,
+      complete_assignment: completeAssignmentNow
+    };
+  }
+
+  const newHomework = draft.homeworkText.trim()
+    ? {
+        description: draft.homeworkText.trim(),
+        kind: draft.homeworkKind,
+        status: draft.homeworkStatus,
+        teacher_comment: draft.homeworkComment || null
+      }
+    : null;
+
+  const { error } = await supabase.rpc("save_lesson_log", {
+    p_payload: {
+      lesson_id: target.lessonId ?? null,
+      student_id: target.studentId,
+      subject: target.subject,
+      schedule_slot_id: target.scheduleSlotId ?? null,
+      lesson_date: todaySeoul(),
+      progress,
+      carryover: Object.entries(draft.carryover).map(([id, state]) => ({
+        id: Number(id),
+        status: state.status,
+        comment: state.comment || null
+      })),
+      new_homework: newHomework,
+      comment: draft.comment.trim() || null
     }
-  }
-  const homeworkOps = [];
-  for (const [id, state] of Object.entries(draft.carryover)) {
-    homeworkOps.push(supabase.from("homeworks").update({ status: state.status, teacher_comment: state.comment || null, checked_at: nowIso(), checked_lesson_id: lessonId }).eq("id", Number(id)));
-  }
-  if (draft.homeworkText.trim()) {
-    homeworkOps.push(supabase.from("homeworks").insert({
-      student_id: target.studentId,
-      assigned_lesson_id: lessonId,
-      subject: target.subject,
-      description: draft.homeworkText.trim(),
-      kind: draft.homeworkKind,
-      status: draft.homeworkKind === "take_home" ? "assigned" : draft.homeworkStatus,
-      teacher_comment: draft.homeworkKind === "take_home" ? null : draft.homeworkComment || null,
-      checked_at: draft.homeworkKind === "take_home" ? null : nowIso(),
-      checked_lesson_id: draft.homeworkKind === "take_home" ? null : lessonId
-    }));
-  }
-  for (const op of homeworkOps) {
-    const { error } = await op;
-    if (error) throw error;
-  }
-  if (draft.comment.trim()) {
-    const { error } = await supabase.from("comments").insert({
-      student_id: target.studentId,
-      lesson_id: lessonId,
-      subject: target.subject,
-      author_id: userId,
-      body: draft.comment.trim()
-    });
-    if (error) throw error;
-  }
-  const { error } = await supabase.from("lessons").update({ status: "done", ended_at: nowIso(), note: draft.comment.trim() || null }).eq("id", lessonId);
+  });
   if (error) throw error;
 }
 
@@ -1392,63 +1422,47 @@ async function completeAssignment(supabase: ReturnType<typeof getSupabase>, assi
   if (error) throw error;
 }
 
-async function saveParsedRows(supabase: ReturnType<typeof getSupabase>, data: AppData, userId: string | null, rows: ParseResult[]) {
-  const okRows = rows.filter((r) => r.ok && r.parsed?.student_id && r.parsed.subject);
+async function saveParsedRows(supabase: ReturnType<typeof getSupabase>, data: AppData, rows: ParseResult[]) {
+  const okRows = rows.filter(isSavableParseResult);
   if (okRows.length < rows.length && !window.confirm("오류 카드는 제외하고 저장할까요?")) return;
   for (const row of okRows) {
     const parsed = row.parsed!;
     const existing = data.lessons.find((l) => l.student_id === parsed.student_id && l.subject === parsed.subject && l.lesson_date === todaySeoul() && l.status !== "canceled");
-    const lessonId = existing?.id ?? await insertQuickLesson(supabase, userId, parsed.student_id, parsed.subject!);
-    if (parsed.student_textbook_id && parsed.to_value !== null) {
-      const { error } = await supabase.from("lesson_progress").insert({
-        lesson_id: lessonId,
-        student_textbook_id: parsed.student_textbook_id,
-        from_value: parsed.from_value ?? 0,
-        to_value: parsed.to_value,
-        memo: row.warning ?? null
-      });
-      if (error) throw error;
-    }
-    if (parsed.homework?.trim()) {
-      const { error } = await supabase.from("homeworks").insert({
+    const progress = parsed.student_textbook_id && parsed.to_value !== null
+      ? (() => {
+          const [fromValue, toValue] = orderedRange(parsed.from_value ?? 0, parsed.to_value);
+          return {
+            student_textbook_id: parsed.student_textbook_id,
+            from_value: fromValue,
+            to_value: toValue,
+            memo: row.warning ?? null,
+            complete_assignment: false
+          };
+        })()
+      : null;
+    const { error } = await supabase.rpc("save_lesson_log", {
+      p_payload: {
+        lesson_id: existing?.id ?? null,
         student_id: parsed.student_id,
-        assigned_lesson_id: lessonId,
         subject: parsed.subject,
-        description: parsed.homework.trim(),
-        kind: "take_home",
-        status: "assigned"
-      });
-      if (error) throw error;
-    }
-    if (parsed.comment?.trim()) {
-      const { error } = await supabase.from("comments").insert({
-        student_id: parsed.student_id,
-        lesson_id: lessonId,
-        subject: parsed.subject,
-        author_id: userId,
-        body: parsed.comment.trim()
-      });
-      if (error) throw error;
-    }
-    if (row.parse_log_id) {
-      const { error } = await supabase.from("parse_logs").update({ status: "confirmed" }).eq("id", row.parse_log_id);
-      if (error) throw error;
-    }
+        schedule_slot_id: existing?.schedule_slot_id ?? null,
+        lesson_date: todaySeoul(),
+        progress,
+        carryover: [],
+        new_homework: parsed.homework?.trim()
+          ? {
+              description: parsed.homework.trim(),
+              kind: "take_home",
+              status: "assigned",
+              teacher_comment: null
+            }
+          : null,
+        comment: parsed.comment?.trim() || null,
+        parse_log_id: row.parse_log_id ?? null
+      }
+    });
+    if (error) throw error;
   }
-}
-
-async function insertQuickLesson(supabase: ReturnType<typeof getSupabase>, userId: string | null, studentId: Id, subject: Subject): Promise<Id> {
-  const { data, error } = await supabase.from("lessons").insert({
-    student_id: studentId,
-    teacher_id: userId,
-    subject,
-    lesson_date: todaySeoul(),
-    started_at: nowIso(),
-    ended_at: nowIso(),
-    status: "done"
-  }).select("id").single();
-  if (error || !data) throw error ?? new Error("수업 저장 실패");
-  return Number(data.id);
 }
 
 // Surface the Edge Function's JSON { message } (e.g. 409 "이미 발송 대기 중입니다.")
@@ -1481,23 +1495,22 @@ async function enqueueReport(supabase: ReturnType<typeof getSupabase>, report: R
   if (error) throw await edgeError(error);
 }
 
-async function savePayment(supabase: ReturnType<typeof getSupabase>, userId: string | null, form: PaymentForm) {
+async function savePayment(supabase: ReturnType<typeof getSupabase>, form: PaymentForm) {
   const studentId = Number(form.studentId);
   if (!studentId) throw new Error("학생을 선택하세요.");
   const items = form.items.filter((i) => i.subject.trim() && i.amount.trim()).map((i) => ({ subject: i.subject.trim(), amount: Number(i.amount) }));
   if (items.length === 0) throw new Error("결제 항목이 필요합니다.");
-  let paymentId = form.id;
-  if (paymentId) {
-    const { error } = await supabase.from("payments").update({ student_id: studentId, paid_on: form.paidOn, method: form.method, memo: form.memo || null }).eq("id", paymentId);
-    if (error) throw error;
-    const del = await supabase.from("payment_items").delete().eq("payment_id", paymentId);
-    if (del.error) throw del.error;
-  } else {
-    const { data, error } = await supabase.from("payments").insert({ student_id: studentId, paid_on: form.paidOn, method: form.method, memo: form.memo || null, created_by: userId }).select("id").single();
-    if (error || !data) throw error ?? new Error("결제 저장 실패");
-    paymentId = Number(data.id);
-  }
-  const { error } = await supabase.from("payment_items").insert(items.map((item) => ({ payment_id: paymentId, ...item })));
+  if (items.some((item) => !Number.isFinite(item.amount))) throw new Error("금액은 숫자로 입력하세요.");
+  const { error } = await supabase.rpc("save_payment_with_items", {
+    p_payload: {
+      payment_id: form.id,
+      student_id: studentId,
+      paid_on: form.paidOn,
+      method: form.method,
+      memo: form.memo || null,
+      items
+    }
+  });
   if (error) throw error;
 }
 
@@ -1670,6 +1683,27 @@ function onlyNumber(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+function optionalNumber(value: string): number | null {
+  const numeric = onlyNumber(value);
+  return numeric ? Number(numeric) : null;
+}
+
+function isSavableParseResult(row: ParseResult): boolean {
+  return Boolean(row.ok && row.parsed?.student_id && row.parsed.subject && hasRecordableParseContent(row.parsed));
+}
+
+function hasRecordableParseContent(parsed: NonNullable<ParseResult["parsed"]>): boolean {
+  return Boolean(
+    (parsed.student_textbook_id && parsed.to_value !== null) ||
+    parsed.homework?.trim() ||
+    parsed.comment?.trim()
+  );
+}
+
+function orderedRange(fromValue: number, toValue: number): [number, number] {
+  return fromValue <= toValue ? [fromValue, toValue] : [toValue, fromValue];
+}
+
 function signedNumber(value: string): string {
   return value.replace(/[^\d-]/g, "").replace(/(?!^)-/g, "");
 }
@@ -1690,4 +1724,23 @@ function toMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === "object" && "message" in error && typeof error.message === "string") return error.message;
   return JSON.stringify(error);
+}
+
+function readStoredState<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  const saved = window.localStorage.getItem(key);
+  if (!saved) return fallback;
+  try {
+    return JSON.parse(saved) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function toLoginMessage(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("invalid login credentials")) return "이메일 또는 비밀번호가 맞지 않습니다.";
+  if (lower.includes("email not confirmed")) return "이메일 확인이 완료되지 않은 계정입니다.";
+  if (lower.includes("rate limit")) return "로그인 시도가 너무 많습니다. 잠시 후 다시 시도하세요.";
+  return message;
 }

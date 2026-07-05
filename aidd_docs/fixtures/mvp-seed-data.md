@@ -4,6 +4,8 @@
 
 적재 경로: 학생·학부모·출결은 GoAlimi(마스터)에 등록 후 Bridge 동기화로 유입. 나머지(교재·배정·스케줄·수업·진도·과제·결제)는 dev에서 service_role SQL 또는 화면 입력으로 적재.
 
+정리 경로: 운영 QA/파일럿 종료 후에는 `supabase/seeds/qa_fixtures_cleanup_preview.sql`로 삭제 대상 count를 확인한 뒤 `supabase/seeds/qa_fixtures_cleanup.sql`을 실행한다. cleanup은 9001·9002·9003·7707의 exact name 가드가 걸린 GoLesson 데이터만 지우며, QA 교재는 실제 학생에게 배정돼 있으면 남긴다. Bridge가 GoAlimi에서 같은 테스트 학생을 다시 동기화할 수 있으므로 실행 전 Bridge를 멈추거나 GoAlimi 쪽 테스트 학생을 먼저 비활성/삭제한다.
+
 ## 1. 학생 (GoAlimi 등록 → 동기화)
 
 | 이름 | 학년 | 수강 과목 | 비고 |

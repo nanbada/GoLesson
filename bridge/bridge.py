@@ -169,9 +169,33 @@ class SupabaseClient:
         data = self.request("POST", f"rpc/{name}", json_body=body)
         return data or []
 
-    def select(self, table: str, params: dict[str, str] | None = None) -> list[dict[str, Any]]:
-        data = self.request("GET", table, params=params)
+    def select(
+        self,
+        table: str,
+        params: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> list[dict[str, Any]]:
+        data = self.request("GET", table, params=params, headers=headers)
         return data or []
+
+    def select_all(
+        self,
+        table: str,
+        params: dict[str, str] | None = None,
+        page_size: int = 1000,
+    ) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        offset = 0
+        while True:
+            page = self.select(
+                table,
+                params=params,
+                headers={"Range": f"{offset}-{offset + page_size - 1}"},
+            )
+            rows.extend(page)
+            if len(page) < page_size:
+                return rows
+            offset += page_size
 
     def patch(self, table: str, filters: dict[str, str], body: dict[str, Any]) -> None:
         self.request("PATCH", table, params=filters, json_body=body, headers={"Prefer": "return=minimal"})
@@ -462,6 +486,11 @@ class Bridge:
                 "synced_at": now,
             })
         self.supabase.upsert("parents", payload, "goalimi_parent_id")
+        remote_ids = {int(row["id"]) for row in rows}
+        existing = self.supabase.select("parents", {"select": "goalimi_parent_id"})
+        for row in existing:
+            if int(row["goalimi_parent_id"]) not in remote_ids:
+                self.supabase.delete("parents", {"goalimi_parent_id": f"eq.{row['goalimi_parent_id']}"})
         self.logger.info("Synced parents: %d", len(payload))
 
     def sync_attendance_incremental(self) -> None:
@@ -527,7 +556,7 @@ class Bridge:
         target = self.config.backup_dir / now_kst().date().isoformat()
         target.mkdir(parents=True, exist_ok=True)
         for table in DEFAULT_TABLES:
-            rows = self.supabase.select(table, {"select": "*"})
+            rows = self.supabase.select_all(table, {"select": "*"})
             (target / f"{table}.json").write_text(
                 json.dumps(rows, ensure_ascii=False, indent=2),
                 encoding="utf-8",

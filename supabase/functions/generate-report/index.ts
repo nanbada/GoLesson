@@ -32,14 +32,15 @@ Deno.serve(async (req) => {
     return errorResponse(400, "bad_request", "student_id, period_start, period_end가 필요합니다.");
   }
 
-  const { data: student } = await svc.from("students").select("id, name").eq("id", studentId).maybeSingle();
+  const { data: student, error: studentErr } = await svc.from("students").select("id, name").eq("id", studentId).maybeSingle();
+  if (studentErr) return errorResponse(500, "internal", "학생 조회에 실패했습니다.");
   if (!student) return errorResponse(404, "student_not_found", "학생을 찾을 수 없습니다.");
 
   const [
-    { data: enrollments },
-    { data: lessons },
-    { data: attendance },
-    { data: settings },
+    enrollmentsRes,
+    lessonsRes,
+    attendanceRes,
+    settingsRes,
   ] = await Promise.all([
     svc.from("enrollments").select("id, subject").eq("student_id", studentId).eq("active", true),
     svc.from("lessons").select("id, subject, status, lesson_date")
@@ -49,13 +50,21 @@ Deno.serve(async (req) => {
       .gte("event_at", `${periodStart}T00:00:00+09:00`).lte("event_at", `${periodEnd}T23:59:59+09:00`),
     svc.from("app_settings").select("key, value").in("key", ["academy_name", "report_closing"]),
   ]);
+  if (enrollmentsRes.error || lessonsRes.error || attendanceRes.error || settingsRes.error) {
+    return errorResponse(500, "internal", "리포트 통계 조회에 실패했습니다.");
+  }
+  const enrollments = enrollmentsRes.data;
+  const lessons = lessonsRes.data;
+  const attendance = attendanceRes.data;
+  const settings = settingsRes.data;
   const subjects = (enrollments ?? []).map((e) => e.subject);
   const enrollmentIds = (enrollments ?? []).map((e) => e.id);
 
   // scheduled = weekday occurrences of schedule_slots in period - canceled lessons
-  const { data: slots } = enrollmentIds.length
+  const { data: slots, error: slotsErr } = enrollmentIds.length
     ? await svc.from("schedule_slots").select("weekday").in("enrollment_id", enrollmentIds)
-    : { data: [] };
+    : { data: [], error: null };
+  if (slotsErr) return errorResponse(500, "internal", "수업 스케줄 조회에 실패했습니다.");
   let scheduled = 0;
   for (const slot of slots ?? []) {
     scheduled += countWeekday(periodStart, periodEnd, slot.weekday);
@@ -66,7 +75,7 @@ Deno.serve(async (req) => {
   const checkin = (attendance ?? []).length;
 
   // progress per textbook: entries whose lesson falls in the period
-  const { data: progressRows } = await svc
+  const { data: progressRows, error: progressErr } = await svc
     .from("lesson_progress")
     .select("from_value, to_value, created_at, student_textbook_id, " +
       "student_textbooks!inner(student_id, textbooks(title, subject, unit_label)), " +
@@ -75,20 +84,33 @@ Deno.serve(async (req) => {
     .gte("lessons.lesson_date", periodStart).lte("lessons.lesson_date", periodEnd)
     .neq("lessons.status", "canceled")
     .order("created_at", { ascending: true });
+  if (progressErr) return errorResponse(500, "internal", "진도 조회에 실패했습니다.");
 
   // homework checked in period, per subject
-  const { data: hwRows } = await svc
+  const { data: hwRows, error: hwErr } = await svc
     .from("homeworks")
     .select("subject, status")
     .eq("student_id", studentId).neq("status", "assigned")
     .gte("checked_at", `${periodStart}T00:00:00+09:00`).lte("checked_at", `${periodEnd}T23:59:59+09:00`);
+  if (hwErr) return errorResponse(500, "internal", "과제 조회에 실패했습니다.");
 
   // comments in period, per subject (subject null = common -> not in subject sections)
-  const { data: commentRows } = await svc
+  const { data: commentRows, error: commentErr } = await svc
     .from("comments")
     .select("subject, body")
     .eq("student_id", studentId)
     .gte("created_at", `${periodStart}T00:00:00+09:00`).lte("created_at", `${periodEnd}T23:59:59+09:00`);
+  if (commentErr) return errorResponse(500, "internal", "코멘트 조회에 실패했습니다.");
+
+  type ProgressRow = {
+    from_value: number;
+    to_value: number;
+    student_textbook_id: number;
+    student_textbooks: {
+      textbooks: { title: string; subject: string; unit_label: string };
+    };
+  };
+  const typedProgressRows = (progressRows ?? []) as unknown as ProgressRow[];
 
   const stats: Record<string, unknown> = {
     period: { start: periodStart, end: periodEnd },
@@ -100,10 +122,8 @@ Deno.serve(async (req) => {
   for (const subject of subjects) {
     // group progress rows by textbook
     const byBook = new Map<string, { unit: string; from: number; to: number; stbId: number }>();
-    for (const row of progressRows ?? []) {
-      const stb = row.student_textbooks as unknown as {
-        textbooks: { title: string; subject: string; unit_label: string };
-      };
+    for (const row of typedProgressRows) {
+      const stb = row.student_textbooks;
       if (stb.textbooks.subject !== subject) continue;
       const key = stb.textbooks.title;
       const cur = byBook.get(key);
@@ -120,12 +140,13 @@ Deno.serve(async (req) => {
     }
     // progress "from" = last to before period start, if any (docs/07 section 2.1)
     for (const [, entry] of byBook) {
-      const { data: prev } = await svc
+      const { data: prev, error: prevErr } = await svc
         .from("lesson_progress")
         .select("to_value, lessons!inner(lesson_date)")
         .eq("student_textbook_id", entry.stbId)
         .lt("lessons.lesson_date", periodStart)
         .order("created_at", { ascending: false }).limit(1);
+      if (prevErr) return errorResponse(500, "internal", "이전 진도 조회에 실패했습니다.");
       if (prev && prev.length > 0) entry.from = prev[0].to_value;
     }
 
@@ -186,12 +207,13 @@ Deno.serve(async (req) => {
   if (body.length > 900) body = body.slice(0, 897) + "…"; // opinion-first truncation left to review step
 
   // ---- draft upsert: same student+period draft -> update, not insert ----
-  const { data: existing } = await svc
+  const { data: existing, error: existingErr } = await svc
     .from("reports")
     .select("id, status")
     .eq("student_id", studentId).eq("period_start", periodStart).eq("period_end", periodEnd)
     .eq("status", "draft")
     .maybeSingle();
+  if (existingErr) return errorResponse(500, "internal", "기존 리포트 조회에 실패했습니다.");
 
   let reportId: number | null = null;
   if (existing) {

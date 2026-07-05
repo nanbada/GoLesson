@@ -11,15 +11,15 @@
 
 [1]과 [2]는 병행 가능. [5]는 [2] 완료 후 [3]·[4]와 병행 가능.
 
-## 현재 상태 (2026-07-05)
+## 현재 상태 (2026-07-06)
 
 | 단계 | 상태 |
 |---|---|
 | [1] GoAlimi API 확장 | 완료 — GoAlimi `f9df186` push됨. mock 모드 T12-1~5 + 재기동 복구 검증 통과. 장문 900자 실측만 Go-Live 체크리스트로 이월 (08 §3.4) |
-| [2] Supabase 기반 | 완료 — 서울 프로젝트 마이그레이션 적용 + T10 원격 검증 완료 |
-| [3] Edge Functions | 완료 — 3개 함수 원격 배포 + smoke + 로컬 T4/T5 하니스 10/10 통과 |
-| [4] Bridge | 완료 — `bridge/` 구현, fake client 단위테스트 7개 통과, GoAlimi Mock + 로컬 Supabase 통합 하니스로 T6·T8·T12-6~7 통과 |
-| [5] Web PWA | 진행 중 — `web/` 1차 구현·운영 env/seed/Auth gate 완료. 수동 QA(2026-07-05): T5·T7 통과, T9·T11 코드레벨 통과(실기기 확인 대기), T1·T2·T3 실행 대기(T1은 스케줄상 월~금 → 07-06부터). 발송안전: ready 본문 잠금 트리거를 적용 후 같은 날 되돌림(BR-506 준수), edgeError만 유지 |
+| [2] Supabase 기반 | 완료 — 서울 프로젝트 마이그레이션 적용 + T10 원격 검증 27/27 통과 |
+| [3] Edge Functions | 완료 — 3개 함수 원격 배포(version 3 ACTIVE) + smoke + 원격 T4/T5 하니스 10/10 통과 |
+| [4] Bridge | 완료 — `bridge/` 구현, fake client 단위테스트 9개 통과, GoAlimi Mock + 로컬 Supabase 통합 하니스로 T6·T8·T12-6~7 통과 |
+| [5] Web PWA | 진행 중 — 구현·운영 env/seed/Auth gate·원격 로그인 smoke 완료. UX subagent 리뷰 반영(typecheck/build/diff-check 통과). T5 수치·구조와 T7 수강료 통과, T1/T2/T3/T7 핵심 DB 전이 원격 RPC 11/11 통과, T9·T11 코드레벨 통과. 남은 것은 실폰 시간측정·OpenAI 의견·실발송·실동기화·실기기 네트워크 |
 | [6] QA·Go-Live | 대기 |
 
 ## [1] GoAlimi API 확장 — GoAlimi 프로젝트에서 별도 작업
@@ -48,13 +48,14 @@
 
 - 범위: 로그인 → 오늘 → 수업 → 학생 → 빠른입력 → 리포트 → 발송현황 → 수강료 → 교재 → 바로가기 → 설정 (03 화면 순서 = 사용 빈도 순).
 - 검증: T1~T3, T5, T7, T9, T11. 30초 기록(REQ-902)은 실기기(폰)로 측정.
-- 운영 QA 전제(2026-07-05 확인): `web/.env`의 공개 URL/key는 `dqibhcadjxqmvahcewfn` 운영 프로젝트와 일치하고 key 값은 publishable key(`sb_publishable_...`) 사용, owner profile 1건 존재, `app_settings.academy_name=루트원학원`, QA fixture는 학생 4·교재 5·스케줄 9·결제 2건 적재, Auth `Allow new users to sign up` off. `supabase/seeds/qa_fixtures_seed.sql`은 재실행해도 카운트가 유지되도록 멱등화됨.
-- 제한: 고정 fixture 스케줄은 월~금만 있으므로 일요일에는 T1 "오늘 수업 표시"를 판정하지 않는다. 2026-07-06 월요일부터 자연 판정하거나, 임시 일요일 스케줄을 추가한 경우에는 QA 후 제거한다.
-- QA 결과(2026-07-05): T7 수강료 월합계=수기계산 통과(2026-06 600,000/카드 400,000/현금 200,000), 수정·삭제 audits 전후기록 검증(payments 트리거, 클라이언트 삭제 row_id=4 before 스냅샷 확인, 잔여 테스트행 id=4 정리 완료 → 2026-07 결제 0건). T5 리포트 수치 실데이터 일치(T5-2 AI 의견은 OPENAI secret 필요). T9·T11 Codex 코드레벨 검증 통과 — 실기기(홈설치·오프라인 입력보존·PC/폰 동시세션·GoAlimi 새 탭)만 남음. T1은 07-06 월요일, T2·T3 실행 대기.
+- 운영 QA 전제(2026-07-06 확인): `web/.env`의 공개 URL/key는 `dqibhcadjxqmvahcewfn` 운영 프로젝트와 일치하고 key 값은 publishable key(`sb_publishable_...`) 사용, owner profile 1건 존재, `app_settings.academy_name=루트원학원`, QA fixture는 학생 4·교재 5·스케줄 9·결제 2건 적재, Auth `Allow new users to sign up` off. `supabase/seeds/qa_fixtures_seed.sql`은 원격 drift 보정 후 재실행됨.
+- QA 결과(2026-07-06): T10 원격 27/27, T13 원격 10/10, T4/T5 함수 원격 10/10, T1/T2/T3/T7 핵심 DB 전이 원격 RPC 11/11 통과. T7 수강료 월합계=수기계산 통과(2026-06 600,000/카드 400,000/현금 200,000), 수정·삭제 audits 전후기록 검증. T5 리포트 수치·구조 실데이터 일치(T5-2 AI 의견은 OPENAI secret 필요). T9·T11 코드레벨 검증 통과. UX subagent 리뷰 후 `npm --prefix web run typecheck`, `npm --prefix web run build`, `git diff --check` 통과. T12 Bridge/GoAlimi 로컬 하니스 통과.
+- 남은 확인: T1/T2/T3 실제 손 입력 시간 측정, T5-2 OpenAI 실제 fallback, T6 실제 카톡 발송·600~900자 온전성·21시 window, T8 실제 GoAlimi 10분 동기화, T9 실폰 설치/오프라인, T11 실기기 다중세션/GoAlimi 새 탭.
 
 ## [6] QA·Go-Live
 
-- fixtures 초기화 → 10_ACCEPTANCE T1~T12 전체 → Go-Live 체크리스트 (§2).
+- fixtures 초기화 → 10_ACCEPTANCE T1~T13 전체 → Go-Live 체크리스트 (§2).
+- 파일럿 종료 후 QA fixture 정리: `supabase/seeds/qa_fixtures_cleanup_preview.sql`로 count 확인 → 사용자 승인 후 `supabase/seeds/qa_fixtures_cleanup.sql` 실행. 실행 전 Bridge 중지 또는 GoAlimi 테스트 학생 비활성/삭제 필요.
 - 파일럿 진입: 1주차 기존 방식 병행 → 2주차 첫 리포트 실발송은 소수 학생부터 (10 §2).
 
 ## 단계별 산출물 위치

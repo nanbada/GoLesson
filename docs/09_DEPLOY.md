@@ -50,15 +50,17 @@
    스크립트: supabase/seeds/prod_app_settings_seed.sql (값 수정 후 실행, 멱등)
 ```
 
-현재 상태(2026-07-05):
+현재 상태(2026-07-06):
 - 운영 프로젝트 `dqibhcadjxqmvahcewfn`(서울 ap-northeast-2) 연결.
-- 마이그레이션 4개 원격 적용, 원격 T10 24/24 통과.
-- Edge Functions 3개(`parse-batch`, `generate-report`, `enqueue-report`) 원격 배포 완료, `ACTIVE`, `verify_jwt=true`.
+- 마이그레이션 local/remote 일치. `20260705130100_restrict_log_mutation_grants.sql`, `20260705130200_transactional_lesson_payment_rpc.sql`까지 원격 적용.
+- 원격 T10 27/27 통과, 원격 T13 10/10 통과.
+- Edge Functions 3개(`parse-batch`, `generate-report`, `enqueue-report`) 원격 배포 완료, version 3, `ACTIVE`, `verify_jwt=true`.
 - 원격 smoke 통과: 인증 teacher로 `parse-batch`, `generate-report`, `enqueue-report` 오류 계약 확인.
 - Auth 이메일 가입 비활성화 확인. owner profile 1건 확인.
 - `app_settings` 운영 seed 적용: `academy_name=루트원학원`, `report_greeting`, `report_closing`. `goalimi_admin_url`은 실제 학원 PC/LAN 주소 확인 후 설정 화면에서 입력.
-- QA fixture seed 적재 완료: 학생 4·교재 5·스케줄 9·수업 2·결제 2. `supabase/seeds/qa_fixtures_seed.sql` 재실행 카운트 유지 확인.
-- 미완료: 실제 운영 강사 초대(필요 시), `OPENAI_API_KEY` secrets 등록(T5-2 AI 의견 검증용), docs/10 T1~T3·T5·T7·T9·T11 실계정 수동 QA.
+- QA fixture seed 적재 완료: 학생 4·교재 5·스케줄 9·수업 2·결제 2. 원격 drift 보정 후 `supabase/seeds/qa_fixtures_seed.sql` 재실행 확인.
+- 원격 자동 QA: T4/T5 함수 10/10, T1/T2/T3/T7 핵심 DB 전이 11/11 통과.
+- 미완료: 실제 운영 강사 초대(필요 시), `OPENAI_API_KEY` secrets 등록(T5-2 AI 의견 검증용), docs/10의 실기기·운영 PC 항목(T1/T2/T3 시간측정, T6 실발송, T8 실동기화, T9 실폰, T11 다기기/GoAlimi 새 탭).
 
 ### 4.2 프론트 (Cloudflare Pages)
 
@@ -85,9 +87,27 @@
 5. 검증: 테스트 학생(7707 신성화)으로 리포트 1건 발송 → 운영자 본인 카톡 수신 확인
 ```
 
-개발 검증 보조: 로컬 Supabase + GoAlimi MockSender 환경에서는 `python3 -m bridge.tests.integration_bridge --config bridge/bridge_config.json --goalimi-repo /Users/nanbada/projects/GoAlimi --port 8000`로 T6/T8/T12-6~7을 확인한다. 이 하니스는 GoAlimi 임시 DB를 쓰며 실제 카톡을 발송하지 않고, 원격 Supabase 실행을 거부한다.
+개발 검증 보조: 로컬 Supabase + GoAlimi MockSender 환경에서는 `python3 -m bridge.tests.integration_bridge --config bridge/bridge_config.json --goalimi-repo /Users/nanbada/projects/GoAlimi --port 8000`로 T6/T8/T12-6~7을 확인한다. 이 하니스는 GoAlimi 임시 DB를 쓰며 실제 카톡을 발송하지 않고, 원격 Supabase 실행을 거부한다. 개발 Mac의 기본 `python3`가 3.14이면 GoAlimi 의존성 호환성 문제로 실패할 수 있으므로 Python 3.12 venv를 사용한다. 2026-07-06 검증에서는 GoAlimi async startup에 `greenlet`이 필요해 임시 venv에만 추가 설치했다.
 
 주의: service_key는 전권 키다. bridge_config.json 외 어디에도 두지 않으며 git 커밋 금지(.gitignore).
+
+### 4.4 QA fixture 정리 (파일럿 종료 후)
+
+운영 QA와 1~2주 파일럿이 끝나면 GoLesson 테스트 데이터를 한 번에 삭제한다. 운영 데이터 삭제 방지를 위해 반드시 preview를 먼저 실행한다.
+
+```
+-- 1) 삭제 대상 count 확인 (read-only)
+supabase/seeds/qa_fixtures_cleanup_preview.sql
+
+-- 2) count가 예상 범위이면 삭제
+supabase/seeds/qa_fixtures_cleanup.sql
+```
+
+실행 전 조건:
+- Bridge를 잠시 중지하거나 GoAlimi 쪽 테스트 학생(9001, 9002, 9003, 7707)을 먼저 비활성/삭제한다. 그렇지 않으면 Bridge가 학생·학부모·출결을 다시 동기화할 수 있다.
+- `7707 신성화`가 여전히 테스트 수신자일 때만 삭제한다.
+- cleanup은 GoLesson DB만 정리한다. GoAlimi 데이터는 GoAlimi 프로젝트/운영 PC에서 별도로 정리한다.
+- cleanup은 QA 학생, 연결된 수업·진도·과제·코멘트·출결·결제·리포트·outbox·parse_logs·audits를 삭제한다. QA 교재는 실제 학생에게 배정돼 있으면 남긴다.
 
 ## 5. 백업·복구
 

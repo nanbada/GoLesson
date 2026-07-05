@@ -26,7 +26,7 @@
 |---|---|---|
 | 1 | to에 직전 진도보다 낮은 값 | 경고 표시되나 저장은 가능(복습) |
 | 2 | 직전과 동일 구간 재저장 | "동일 진도" 안내 + 저장 가능, 로그 2건 존재 |
-| 3 | to < from 입력 | 저장 거부 + 안내 |
+| 3 | from/to 역순 입력 | 작은 값→큰 값으로 자동 정렬되어 저장 |
 | 4 | to ≥ 총량 입력 | 완료 확인 다이얼로그 → 승인 시 completed |
 | 5 | 완료 교재에 진도 입력 시도 | 불가, 다음 교재 배정 유도 |
 
@@ -82,7 +82,7 @@ GoAlimi에 테스트 학생 등록 → 10분 내 GoLesson 표시 / GoAlimi에서
 
 ### T10. 권한·보안
 
-로그아웃 상태 접근 → 로그인 화면 / anon 키로 REST 직접 조회 → 거부(RLS·GRANT) / **authenticated 계정으로 students·parents·attendance insert/update 시도 → 거부** (읽기 전용 사본, 04 §5 A군) / parse_logs: 타인이 만든 행의 status 갱신 → 거부, 본인 행의 status 외 컬럼(raw_text 등) 갱신 → 거부(컬럼 GRANT) / sent 리포트 body update → 거부(트리거) / **authenticated로 reports.status='sent' 직접 insert/update → 거부** (발송 완료는 Bridge 소유, 04 §5 3-1) / 비활성 profile 로그인 → 데이터 접근 불가 / claim_outbox RPC를 authenticated로 호출 → 거부(service_role 전용) / service_key가 git 이력·프론트 번들에 없음.
+로그아웃 상태 접근 → 로그인 화면 / anon 키로 REST 직접 조회 → 거부(RLS·GRANT) / **authenticated 계정으로 students·parents·attendance insert/update 시도 → 거부** (읽기 전용 사본, 04 §5 A군) / lesson_progress 기존 행 update 거부(append-only, 04 §5 3-2) / homeworks delete 거부(이력 보존, 04 §5 4-1) / parse_logs: 타인이 만든 행의 status 갱신 → 거부, 본인 행의 status 외 컬럼(raw_text 등) 갱신 → 거부(컬럼 GRANT) / sent 리포트 body update → 거부(트리거) / **authenticated로 reports.status='sent' 직접 insert/update → 거부** (발송 완료는 Bridge 소유, 04 §5 3-1) / 비활성 profile 로그인 → 데이터 접근 불가 / claim_outbox RPC를 authenticated로 호출 → 거부(service_role 전용) / service_key가 git 이력·프론트 번들에 없음.
 
 ### T11. 계정·바로가기 (REQ-909~910)
 
@@ -105,15 +105,29 @@ GoAlimi에 테스트 학생 등록 → 10분 내 GoLesson 표시 / GoAlimi에서
 | 6 | GoAlimi에서 출결 1건 hard delete → 일일 대사 후 | GoLesson attendance에서도 제거, 리포트 출석 수치 일치 |
 | 7 | 발송 도중 Bridge 강제 종료 → 재기동 | stale processing이 goalimi_custom_id 조회로 sent 반영 — 중복 발송 0건 (05_API §3 회수) |
 
-Bridge 로컬 보조 하니스: `python3 -m bridge.tests.integration_bridge --config bridge/bridge_config.json --goalimi-repo /Users/nanbada/projects/GoAlimi --port 8000`. GoAlimi 임시 DB + MockSender + Supabase REST/RPC로 T6 Bridge 항목, T8, T12-6~7을 검증한다. 하니스는 원격 Supabase 실행을 거부하며, 실제 카톡 장문 수신은 Go-Live Checklist의 별도 실측 항목으로 남긴다.
+Bridge 로컬 보조 하니스: `python3 -m bridge.tests.integration_bridge --config bridge/bridge_config.json --goalimi-repo /Users/nanbada/projects/GoAlimi --port 8000`. GoAlimi 임시 DB + MockSender + Supabase REST/RPC로 T6 Bridge 항목, T8, T12-6~7을 검증한다. 하니스는 원격 Supabase 실행을 거부하며, 실제 카톡 장문 수신은 Go-Live Checklist의 별도 실측 항목으로 남긴다. 개발 Mac의 기본 `python3`가 3.14이면 GoAlimi 의존성 호환성 문제가 있으므로 Python 3.12 venv를 사용한다.
+
+### T13. 트랜잭션 RPC
+
+로컬 Supabase 또는 명시 env(`API_URL`, `ANON_KEY`, `SERVICE_ROLE_KEY`)가 있는 원격 프로젝트에서 `supabase/tests/t13-transaction-rpc.sh` 실행. 원격 실행 시 throwaway auth users/rows를 만들고 정리하므로 운영 수업 데이터와 충돌하지 않는 시간에 실행한다.
+
+| # | 절차 | 통과 기준 |
+|---|---|---|
+| 1 | `save_lesson_log`로 42→38 진도 저장 | `lesson_progress`가 38→42로 저장 |
+| 2 | 수업 저장 중 잘못된 과제 status 주입 | lesson/progress/homework/comment 모두 롤백 |
+| 3 | `save_payment_with_items`로 결제+항목 저장 | payment 1건과 payment_items 전부 저장 |
+| 4 | 결제 수정 중 잘못된 항목 amount 주입 | payment 부모와 기존 payment_items 모두 원상 유지 |
 
 ## 2. Go-Live Checklist
 
+현재 자동/반자동 검증 상태(2026-07-06): T4/T5 함수 10/10, T10 27/27, T13 10/10, T1/T2/T3/T7 핵심 DB 전이 11/11, Web UX subagent 리뷰 반영 후 typecheck/build/diff-check 통과, T12 로컬 Bridge/GoAlimi 하니스 통과. 남은 것은 아래 체크리스트의 실기기·운영 PC 항목이다.
+
 | 항목 | 기준 | 확인 |
 |---|---|---|
-| T1~T12 | 전 시나리오 통과 | ☐ |
+| T1~T13 | 전 시나리오 통과 | ☐ |
 | 실데이터 이관 | 교재·스케줄·교재 배정 등록 완료, 학생은 동기화로 확보 | ☐ |
 | 장문 발송 실측 | 900자 리포트 카톡 수신 온전 (08_GOALIMI §3.4) | ☐ |
+| QA fixture 정리 | `qa_fixtures_cleanup_preview.sql` 확인 후 `qa_fixtures_cleanup.sql`로 테스트 데이터 삭제. Bridge 재동기화 방지 조치 확인 | ☐ |
 | 백업 | 야간 export 파일 생성 확인 + 복구 리허설 1회 | ☐ |
 | Bridge 자동 기동 | PC 재부팅 → Bridge·GoAlimi 자동 복구 | ☐ |
 | 강사 온보딩 | 강사 1명이 안내 없이 T1 수행 가능 | ☐ |

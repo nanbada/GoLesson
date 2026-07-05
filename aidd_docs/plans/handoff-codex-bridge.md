@@ -1,6 +1,6 @@
 # Handoff 프롬프트 — [4] Bridge 구현 (GPT Codex용)
 
-> 상태: 완료됨. Codex가 `bridge/` 구현, 단위테스트 7개, GoAlimi Mock + 로컬 Supabase 통합 하니스 T6·T8·T12-6~7을 완료했다. 이 문서는 [4] 착수 당시의 과거 인수인계 기록이며, 새 세션은 `aidd_docs/plans/session-kickoff-prompt.md`의 [5] Web PWA 프롬프트를 사용한다.
+> 상태: 완료됨. Codex가 `bridge/` 구현, 단위테스트 9개, GoAlimi Mock + 로컬 Supabase 통합 하니스 T6·T8·T12-6~7을 완료했다. 이 문서는 [4] 착수 당시의 과거 인수인계 기록이며, 새 세션은 `aidd_docs/plans/claude-handoff-prompt.md`의 QA·Go-Live 프롬프트를 사용한다.
 
 아래 구분선 안쪽 전체를 Codex에 붙여넣는다. (작성 2026-07-04, Fable 세션 — 토큰 한도로 인계)
 

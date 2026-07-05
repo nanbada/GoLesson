@@ -1,5 +1,7 @@
 # 2026-07-05 세션 핸드오프 — [5] Web PWA 운영 QA 준비
 
+후속 상태(2026-07-06): 원격 migration/functions 배포, T10/T13/T4-T5/핵심 DB 전이 검증, T12 Bridge/GoAlimi 하니스까지 완료됐다. 최신 Claude handoff는 `aidd_docs/plans/claude-handoff-prompt.md`, 최신 실행 기록은 `aidd_docs/memory/internal/2026-07-06-session-t12-bridge-harness.md`를 우선한다.
+
 ## 완료
 
 - Supabase skill 기준으로 운영 프로젝트 확인:
