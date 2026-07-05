@@ -29,13 +29,13 @@ GoAlimi (기존 출결 서비스) → 카카오톡 → 학부모
 | `aidd_docs/memory/internal/` | 세션 간 핸드오프 기록 |
 | `CLAUDE.md` / `AGENTS.md` | AI 에이전트 작업 지침 (Claude Code / Codex — 공통 정책 동일, CLAUDE.md에만 오케스트레이션 섹션 추가) |
 | `supabase/` | 마이그레이션·Edge Functions·QA seed/test 구현 완료 |
-| `web/` | Next.js 정적 PWA 구현 예정 |
+| `web/` | Next.js 정적 PWA 1차 구현 — 운영 env/seed/Auth gate 완료, 실계정 수동 QA 대기 |
 | `bridge/` | 학원 PC 워커 구현 + 단위/통합 하니스 검증 완료 |
 
 ## 개발 시작 (새 세션)
 
 1. `CLAUDE.md`(또는 `AGENTS.md`) → `docs/00_PROJECT.md` → `aidd_docs/memory/internal/` 최신 핸드오프 순으로 읽는다.
-2. `aidd_docs/plans/mvp-build-plan.md`의 현재 단계부터 진행한다. 현재 상태: **[1] GoAlimi API + [2] Supabase 기반 + [3] Edge Functions + [4] Bridge 완료**. 다음 작업은 [5] Web PWA다.
+2. `aidd_docs/plans/mvp-build-plan.md`의 현재 단계부터 진행한다. 현재 상태: **[1] GoAlimi API + [2] Supabase 기반 + [3] Edge Functions + [4] Bridge 완료, [5] Web PWA 운영 QA 전제 완료/수동 QA 대기**.
 
 ## 안전 규칙 (요약 — 상세는 CLAUDE.md)
 

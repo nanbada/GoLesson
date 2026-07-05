@@ -50,12 +50,15 @@
    스크립트: supabase/seeds/prod_app_settings_seed.sql (값 수정 후 실행, 멱등)
 ```
 
-현재 상태(2026-07-04):
+현재 상태(2026-07-05):
 - 운영 프로젝트 `dqibhcadjxqmvahcewfn`(서울 ap-northeast-2) 연결.
 - 마이그레이션 4개 원격 적용, 원격 T10 24/24 통과.
 - Edge Functions 3개(`parse-batch`, `generate-report`, `enqueue-report`) 원격 배포 완료, `ACTIVE`, `verify_jwt=true`.
 - 원격 smoke 통과: 인증 teacher로 `parse-batch`, `generate-report`, `enqueue-report` 오류 계약 확인.
-- 미완료: Auth 이메일 가입 비활성화·강사 초대·profiles seed, `OPENAI_API_KEY` secrets 등록, app_settings 운영 seed.
+- Auth 이메일 가입 비활성화 확인. owner profile 1건 확인.
+- `app_settings` 운영 seed 적용: `academy_name=루트원학원`, `report_greeting`, `report_closing`. `goalimi_admin_url`은 실제 학원 PC/LAN 주소 확인 후 설정 화면에서 입력.
+- QA fixture seed 적재 완료: 학생 4·교재 5·스케줄 9·수업 2·결제 2. `supabase/seeds/qa_fixtures_seed.sql` 재실행 카운트 유지 확인.
+- 미완료: 실제 운영 강사 초대(필요 시), `OPENAI_API_KEY` secrets 등록(T5-2 AI 의견 검증용), docs/10 T1~T3·T5·T7·T9·T11 실계정 수동 QA.
 
 ### 4.2 프론트 (Cloudflare Pages)
 
@@ -63,6 +66,7 @@
 1. GitHub 저장소 연결 → Pages 프로젝트 생성 (빌드: next build, 출력: out/ — 정적 export)
    ※ 모노레포이므로 루트 디렉토리를 web/으로 지정. web/ 생성 전([5] 이전)에는 빌드 실패가 정상
 2. env: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+   ※ `NEXT_PUBLIC_SUPABASE_ANON_KEY` 변수명에는 Supabase publishable key(`sb_publishable_...`) 사용 권장. legacy anon key도 호환되지만 신규 운영 env는 publishable key로 둔다.
 3. next.config: output 'export' + PWA(manifest·SW — Serwist 권장)
 4. 폰·패드에서 설치(A2HS) 확인
 ※ Vercel로 이전/병행 시에도 동일 구성(정적 export) — 절차만 다르고 코드 변경 없음
@@ -95,7 +99,7 @@
 
 | 위치 | 키 |
 |---|---|
-| Cloudflare Pages (또는 대체 호스팅) | NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY |
+| Cloudflare Pages (또는 대체 호스팅) | NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY(publishable key 권장) |
 | Supabase Secrets | OPENAI_API_KEY, OPENAI_MODEL_PARSE, OPENAI_MODEL_REPORT |
 | 학원 PC | bridge_config.json (service_key 포함 — 유일한 보관처) |
 

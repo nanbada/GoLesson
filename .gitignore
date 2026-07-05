@@ -3,6 +3,7 @@ node_modules/
 .next/
 out/
 dist/
+*.tsbuildinfo
 __pycache__/
 *.pyc
 .venv/
@@ -10,6 +11,8 @@ __pycache__/
 # secrets — 절대 커밋 금지 (CLAUDE.md 절대 규칙 9)
 .env
 .env.*
+!.env.example
+!web/.env.example
 bridge_config.json
 
 # supabase local
@@ -28,3 +31,5 @@ backup/
 # os / editor
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
