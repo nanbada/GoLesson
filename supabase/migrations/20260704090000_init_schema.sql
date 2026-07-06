@@ -41,9 +41,9 @@ create table textbooks (
   subject     text not null check (subject in ('영어','수학')),
   title       text not null,
   publisher   text,
-  unit_label  text not null default '페이지',  -- one unit label per textbook: 페이지|단원|Day|챕터 ...
+  unit_label  text not null default '페이지',  -- one localized unit label per textbook
   total_units integer,                          -- null = total unknown (no auto-complete detection)
-  aliases     text[] not null default '{}',     -- parser aliases ('브릭스','bricks')
+  aliases     text[] not null default '{}',     -- parser aliases and title shorthand
   active      boolean not null default true
 );
 
@@ -167,7 +167,7 @@ create table payments (
 create table payment_items (
   id         bigint generated always as identity primary key,
   payment_id bigint not null references payments(id) on delete cascade,
-  subject    text not null,          -- '영어'|'수학'|'교재비' etc. (free text)
+  subject    text not null,          -- localized subject or item label (free text)
   amount     integer not null        -- KRW. Refund = negative
 );
 create index ix_payments_paid_on on payments(paid_on);

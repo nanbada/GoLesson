@@ -7,7 +7,7 @@
 -- Preconditions:
 -- - Stop Bridge or remove/deactivate the same test students in GoAlimi first.
 --   Otherwise Bridge can sync 7707/9001/9002/9003 back into GoLesson.
--- - Confirm 7707 신성화 is still only the test recipient, not production data.
+-- - Confirm student 7707 is still only the test recipient, not production data.
 -- - Run as database owner/service role from Supabase SQL editor or psql.
 --
 -- Safety:

@@ -1,6 +1,6 @@
 -- Revert 20260705120000_reports_ready_body_immutable: drop the ready-body lock.
 -- BR-506 (docs/06) deliberately keeps a ready report's body client-editable until
--- sent (locking it at 'ready' is 과설계 for the 1-person self-approval workflow).
+-- sent (locking it at 'ready' is overbuilt for the 1-person self-approval workflow).
 -- The lock was also unnecessary for send safety: the Bridge sends
 -- notification_outbox.message -- the snapshot taken at enqueue (bridge.py:296) --
 -- never the live reports.body, so a post-approval edit can never reach a parent;

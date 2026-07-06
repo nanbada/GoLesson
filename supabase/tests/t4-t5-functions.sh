@@ -35,7 +35,7 @@ TOK=$(jget "$R" access_token)
 TH=(-H "apikey: $ANON_KEY" -H "Authorization: Bearer $TOK")
 
 echo "== T4: parse-batch fixed sentences (docs/10 section 3) =="
-# Sentence 9 in docs/10 is "서연 영어" -- the parenthetical is doc annotation.
+# Sentence 9 in docs/10 is the no-progress enrolled-subject case; the parenthetical is doc annotation.
 cat > "$TMP/req.json" <<'EOF'
 {"text":"민수 영어 브릭스 38-42 숙제 43~45 독해 좋아짐\n서연 수학 쎈 120~126 계산 실수 잦음\n민수 단어 Day3 완료\n지호 영어 38~42 (복습)\n서연 수학 3단원 숙제 워크북 12-15\n민수 오늘 집중 떨어졌지만 숙제는 열심히 함\n지호 영어 리딩 55까지 숙제 56-58 단어 Day7\n없는학생 영어 10-20\n서연 영어\n민수 수학 개념 이해 좋음 계산 속도 개선 필요"}
 EOF

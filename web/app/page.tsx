@@ -1465,7 +1465,7 @@ async function saveParsedRows(supabase: ReturnType<typeof getSupabase>, data: Ap
   }
 }
 
-// Surface the Edge Function's JSON { message } (e.g. 409 "이미 발송 대기 중입니다.")
+// Surface the Edge Function's JSON { message } (for example a 409 conflict)
 // instead of supabase-js's generic "Edge Function returned a non-2xx status code".
 async function edgeError(error: unknown): Promise<Error> {
   const context = (error as { context?: unknown }).context;

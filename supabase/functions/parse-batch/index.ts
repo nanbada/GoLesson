@@ -68,8 +68,8 @@ const UNIT_RES: [RegExp, string][] = [
 ];
 const SINGLE_RE = /(?:p\.?\s*)?(\d+)(?:까지|완료)?/;
 const HW_KEYWORDS = ["숙제", "과제", "hw"];
-// Homework free-text types consumed inside the homework segment (deep-reasoner
-// memo: sentence 5 "숙제 워크북 12-15" must keep 워크북 in homework).
+// Homework free-text types consumed inside the homework segment.
+// Fixed sentence 5 must keep the workbook token in homework.
 const HW_TYPE_WORDS = ["워크북", "문제집", "프린트"];
 const SUBJECT_MAP: Record<string, string> = { 영어: "영어", 영: "영어", 수학: "수학", 수: "수학" };
 
@@ -205,8 +205,8 @@ function parseLine(raw: string, dict: Dict): ParseAttempt {
     }
   }
 
-  // Enrollment guard: explicit subject the student does not take -> error card
-  // (fixture sentence 9 "서연 영어" -> textbook_not_found, no AI call)
+  // Enrollment guard: explicit subject the student does not take -> error card.
+  // Fixed sentence 9 must return textbook_not_found without an AI call.
   if (subject && !dict.enrollments.some((e) => e.student_id === student!.id && e.subject === subject)) {
     return fail(student.id, "textbook_not_found");
   }
@@ -268,7 +268,7 @@ function parseLine(raw: string, dict: Dict): ParseAttempt {
   let rest = restTokens.join(" ");
   let fromValue: number | null = null;
   let toValue: number | null = null;
-  let notation: string | null = null; // null=plain number, else 단원/Day/챕터
+  let notation: string | null = null; // null=plain number, otherwise a localized unit label
   let progressText: string | null = null;
   const warnings: string[] = [];
 

@@ -8,7 +8,7 @@ __pycache__/
 *.pyc
 .venv/
 
-# secrets — 절대 커밋 금지 (CLAUDE.md 절대 규칙 9)
+# secrets - never commit (CLAUDE.md rule 9)
 .env
 .env.*
 !.env.example

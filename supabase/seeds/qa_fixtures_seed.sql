@@ -13,7 +13,7 @@ values
 on conflict (goalimi_student_id) do nothing;
 
 -- 2. Parents (one primary per student, notify_enabled=true)
--- Dummy kakao_name for 9001/9002/9003 (never send); 신성화 uses '신성화' (operator account)
+-- Dummy kakao_name for 9001/9002/9003 (never send); 7707 uses the operator account
 insert into parents (goalimi_parent_id, student_id, kakao_name, notify_enabled, is_primary)
 values
   (90001, (select id from students where goalimi_student_id = 9001), '테스트-민수모', true, true),
@@ -69,10 +69,10 @@ values
 on conflict (student_id, subject) do nothing;
 
 -- 6. Schedule slots (§4: weekday 0=Mon, duration=40min)
--- 김민수: 월·목 15:00 영어, 화·금 15:00 수학
--- 이서연: 월·수 16:00 수학
--- 박지호: 화·목 16:00 영어
--- 신성화: 월 17:00 영어
+-- Student 9001: Mon/Thu 15:00 English, Tue/Fri 15:00 math
+-- Student 9002: Mon/Wed 16:00 math
+-- Student 9003: Tue/Thu 16:00 English
+-- Student 7707: Mon 17:00 English
 insert into schedule_slots (enrollment_id, weekday, start_time, duration_min)
 select e.id, item.weekday, item.start_time::time, item.duration_min
 from (values
@@ -96,7 +96,7 @@ where not exists (
     and ss.duration_min = item.duration_min
 );
 
--- 7. Lessons & Progress (§5: 신성화 영어 done 2회, within last 2 weeks on Mondays)
+-- 7. Lessons & Progress (section 5: student 7707 English, two completed Monday lessons in the last two weeks)
 -- Calculate Monday dates: most recent Monday <= today, then 1 week prior
 -- We use date arithmetic relative to current_date so seed stays valid any day
 do $$
@@ -169,7 +169,7 @@ begin
 end $$;
 
 -- 8. Homework (§5)
--- 김민수: take_home 1건 unchecked "워크북 30-32"
+-- Student 9001: one unchecked take_home homework row
 insert into homeworks (student_id, subject, description, kind, status)
 select (select id from students where goalimi_student_id = 9001),
        '영어',
@@ -185,7 +185,7 @@ where not exists (
     and status = 'assigned'
 );
 
--- 박지호: in_class 1건 done with comment "집중 좋음"
+-- Student 9003: one completed in_class homework row with a teacher comment
 do $$
 declare
   hw_id bigint;
@@ -208,7 +208,7 @@ begin
 end $$;
 
 -- 9. Attendance (§5)
--- 신성화: IN 2건 matching the lesson dates (mondays from lessons)
+-- Student 7707: two IN events matching the lesson Mondays
 do $$
 declare
   monday_this_week date;
@@ -227,7 +227,7 @@ begin
   on conflict (goalimi_log_id) do nothing;
 end $$;
 
--- 김민수: IN/OUT 각 2건
+-- Student 9001: two IN events and two OUT events
 do $$
 declare
   student_id_val bigint;
@@ -247,8 +247,8 @@ begin
 end $$;
 
 -- 10. Payments (§5 & T7)
--- 김민수 2026-06-02 카드 [영어 200,000 + 수학 200,000]
--- 이서연 2026-06-03 현금 [수학 200,000]
+-- Student 9001, 2026-06-02, card payment: English 200,000 + math 200,000
+-- Student 9002, 2026-06-03, cash payment: math 200,000
 do $$
 declare
   payment_id_1 bigint;
