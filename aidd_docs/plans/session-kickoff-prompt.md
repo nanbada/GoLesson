@@ -10,7 +10,7 @@
 - [2] Supabase 기반 완료: 서울 프로젝트 `dqibhcadjxqmvahcewfn`, 마이그레이션 local/remote 일치, 원격 T10 27/27 통과.
 - [3] Edge Functions 완료: `parse-batch`, `generate-report`, `enqueue-report` 원격 배포 version 3 ACTIVE, 원격 T4/T5 하니스 10/10 통과.
 - [4] Bridge 완료: `bridge/` 구현, 단위테스트 9개, GoAlimi Mock + 로컬 Supabase 통합 하니스 T6·T8·T12-6~7 통과.
-- [5] Web PWA 진행 중: 구현·정적 빌드·운영 env/seed/Auth gate·원격 로그인 smoke 완료. UX subagent 리뷰 반영(typecheck/build/diff-check 통과). T5 수치·구조, T7 수강료, T1/T2/T3/T7 핵심 DB 전이는 통과. 남은 것은 실폰/운영 PC에서만 판정 가능한 항목.
+- [5] Web PWA 진행 중: 구현·정적 빌드·운영 env/seed/Auth gate·원격 로그인 smoke 완료, Cloudflare Pages `https://golesson.pages.dev` 배포 완료. UX subagent 리뷰 반영(typecheck/build/diff-check 통과). T5 수치·구조, T7 수강료, T1/T2/T3/T7 핵심 DB 전이는 통과. T5-2 AI 의견은 OpenAI `429 insufficient_quota` 해소 후 재검증. 남은 것은 실폰/운영 PC에서만 판정 가능한 항목.
 
 최신 근거:
 - `aidd_docs/plans/remaining-work.md` (남은 업무 보드)
@@ -28,7 +28,7 @@ Goal: GoLesson MVP 출시 전 남은 실기기/운영 PC QA 완료.
 
 완료 기준:
 - T1/T2/T3: 실제 폰으로 오늘 수업 시작→진도→과제→완료를 수행하고 REQ-902 30초 조작 시간을 측정.
-- T5-2: OpenAI secret이 있으면 AI 의견 품질 확인. 없으면 수치·구조 PASS, AI 의견 보류로 기록.
+- T5-2: OpenAI quota/billing 복구 후 AI 의견 품질 확인. 현재 secret은 보이나 OpenAI `429 insufficient_quota`로 fallback 처리됨.
 - T6: 테스트 학생 7707 신성화로 실제 Bridge/GoAlimi/카톡 발송, dedupe, GoAlimi down recovery, 21시 window 확인.
 - T8: 실제 GoAlimi 등록/비활성화가 Bridge 10분 주기 안에 반영되는지 확인.
 - T9: 실제 모바일 홈설치·standalone·비행기모드 입력 보존·복귀 재제출 확인.

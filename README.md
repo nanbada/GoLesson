@@ -147,7 +147,7 @@ Already covered by automated/semi-automated QA:
 Still requires real device or academy PC:
 
 - T1/T2/T3: phone-based lesson flow and 30-second operation timing
-- T5-2: OpenAI fallback quality with Supabase secret configured
+- T5-2: OpenAI opinion quality after OpenAI quota/billing is restored
 - T6: real Bridge/GoAlimi/KakaoTalk send and 600-900 character integrity
 - T8: real GoAlimi 10-minute sync
 - T9: mobile PWA install/offline behavior

@@ -7,7 +7,7 @@ Goal: GoLesson MVP 출시 전 남은 실기기/운영 PC QA를 끝내고, 결과
 
 완료 기준:
 - T1/T2/T3: 실제 폰에서 오늘 수업 시작→진도→과제→완료 흐름을 수행. REQ-902 기록 조작 합계 30초 이내를 직접 측정.
-- T5-2: Supabase secret OPENAI_API_KEY가 설정된 상태에서 AI 의견이 입력 코멘트 밖의 사실·수치를 만들지 않는지 확인. secret 미설정이면 "수치·구조 PASS, AI 의견 보류"로 명시.
+- T5-2: OpenAI quota/billing 복구 후 AI 의견이 입력 코멘트 밖의 사실·수치를 만들지 않는지 확인. 현재 `OPENAI_API_KEY`는 Edge Runtime에 보이나 OpenAI가 `429 insufficient_quota`를 반환해 fallback 처리됨.
 - T6: 테스트 학생 7707 신성화만 사용. Bridge/GoAlimi 실발송, 600~900자 카톡 온전성, dedupe 409, GoAlimi 중지 후 pending 유지, 21시 이후 window를 확인.
 - T8: 실제 GoAlimi 운영 데이터에서 학생 등록/비활성화가 Bridge 10분 주기 안에 GoLesson에 반영되는지 확인.
 - T9: 실제 모바일 홈 화면 설치, standalone 실행, 비행기 모드 입력 보존, 복귀 후 재제출 성공 확인.
@@ -23,7 +23,7 @@ Goal: GoLesson MVP 출시 전 남은 실기기/운영 PC QA를 끝내고, 결과
   - supabase/tests/t13-transaction-rpc.sh: RESULT 10 passed, 0 failed.
   - supabase/tests/t4-t5-functions.sh: RESULT 10 passed, 0 failed.
   - 별도 원격 RPC 하니스 T1/T2/T3/T7 핵심 DB 전이: RESULT 11 passed, 0 failed.
-- Web PWA: typecheck/build/audit 통과, 원격 env 로그인 smoke 통과.
+- Web PWA: typecheck/build/audit 통과, 원격 env 로그인 smoke 통과, Cloudflare Pages `https://golesson.pages.dev` 배포 완료.
 - UX subagent 리뷰 반영: 수업 시작 전 폼 숨김, lesson id 반영, 리포트 본문 저장 후 승인/발송, 빠른입력 빈 숫자 방지, PWA navigation network-first. typecheck/build/diff-check 통과.
 - T5 수치·구조, T7 수강료는 수동+DB 대조 통과. T9/T11은 코드레벨 통과, 실기기만 남음.
 - Bridge/GoAlimi 로컬 하니스: T6 Bridge 항목, T8, T12-6~7 PASS. 마지막 라인: PASS Bridge integration harness completed.

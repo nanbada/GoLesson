@@ -60,19 +60,31 @@
 - `app_settings` 운영 seed 적용: `academy_name=루트원학원`, `report_greeting`, `report_closing`. `goalimi_admin_url`은 실제 학원 PC/LAN 주소 확인 후 설정 화면에서 입력.
 - QA fixture seed 적재 완료: 학생 4·교재 5·스케줄 9·수업 2·결제 2. 원격 drift 보정 후 `supabase/seeds/qa_fixtures_seed.sql` 재실행 확인.
 - 원격 자동 QA: T4/T5 함수 10/10, T1/T2/T3/T7 핵심 DB 전이 11/11 통과.
-- 미완료: 실제 운영 강사 초대(필요 시), `OPENAI_API_KEY` secrets 등록(T5-2 AI 의견 검증용), docs/10의 실기기·운영 PC 항목(T1/T2/T3 시간측정, T6 실발송, T8 실동기화, T9 실폰, T11 다기기/GoAlimi 새 탭).
+- `OPENAI_API_KEY`, `OPENAI_MODEL_PARSE`, `OPENAI_MODEL_REPORT` secrets는 등록 완료. 단, 2026-07-06 진단 함수에서 OpenAI `429 insufficient_quota`를 확인했다. T5-2 AI 의견 검증은 OpenAI quota/billing 복구 후 재실행한다.
+- 미완료: 실제 운영 강사 초대(필요 시), OpenAI quota/billing 복구(T5-2 AI 의견 검증용), docs/10의 실기기·운영 PC 항목(T1/T2/T3 시간측정, T6 실발송, T8 실동기화, T9 실폰, T11 다기기/GoAlimi 새 탭).
 
 ### 4.2 프론트 (Cloudflare Pages)
 
 ```
-1. GitHub 저장소 연결 → Pages 프로젝트 생성 (빌드: next build, 출력: out/ — 정적 export)
-   ※ 모노레포이므로 루트 디렉토리를 web/으로 지정. web/ 생성 전([5] 이전)에는 빌드 실패가 정상
+1. GitHub 저장소 연결 → Pages 프로젝트 생성
+   - Root directory: `web`
+   - Build command: `npm run build`
+   - Build output directory: `out`
+   - Node: `NODE_VERSION=22.16.0` 또는 `web/.node-version`
+   ※ web/ 생성 전([5] 이전)에는 빌드 실패가 정상
 2. env: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
    ※ `NEXT_PUBLIC_SUPABASE_ANON_KEY` 변수명에는 Supabase publishable key(`sb_publishable_...`) 사용 권장. legacy anon key도 호환되지만 신규 운영 env는 publishable key로 둔다.
-3. next.config: output 'export' + PWA(manifest·SW — Serwist 권장)
+   ※ service_role, sb_secret, OpenAI 키는 Pages env에 넣지 않는다.
+3. next.config: output 'export' + PWA(manifest·service-worker)
 4. 폰·패드에서 설치(A2HS) 확인
 ※ Vercel로 이전/병행 시에도 동일 구성(정적 export) — 절차만 다르고 코드 변경 없음
 ```
+
+현재 상태(2026-07-06):
+- Cloudflare Pages 프로젝트 `golesson`이 GitHub `nanbada/GoLesson` main 브랜치에 연결됨.
+- Pages 설정: root `web`, build `npm run build`, output `out`, production/preview env `NODE_VERSION`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+- Production deployment `1982fa86` 성공, `https://golesson.pages.dev` HTTP 200.
+- 배포 번들 확인: 운영 Supabase ref(`dqibhcadjxqmvahcewfn`) 포함, `127.0.0.1:54321`/`example.supabase` 미포함. service worker는 `golesson-shell-v2`.
 
 ### 4.3 Bridge (학원 PC)
 

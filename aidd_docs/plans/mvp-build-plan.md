@@ -51,8 +51,8 @@
 - 범위: 로그인 → 오늘 → 수업 → 학생 → 빠른입력 → 리포트 → 발송현황 → 수강료 → 교재 → 바로가기 → 설정 (03 화면 순서 = 사용 빈도 순).
 - 검증: T1~T3, T5, T7, T9, T11. 30초 기록(REQ-902)은 실기기(폰)로 측정.
 - 운영 QA 전제(2026-07-06 확인): `web/.env`의 공개 URL/key는 `dqibhcadjxqmvahcewfn` 운영 프로젝트와 일치하고 key 값은 publishable key(`sb_publishable_...`) 사용, owner profile 1건 존재, `app_settings.academy_name=루트원학원`, QA fixture는 학생 4·교재 5·스케줄 9·결제 2건 적재, Auth `Allow new users to sign up` off. `supabase/seeds/qa_fixtures_seed.sql`은 원격 drift 보정 후 재실행됨.
-- QA 결과(2026-07-06): T10 원격 27/27, T13 원격 10/10, T4/T5 함수 원격 10/10, T1/T2/T3/T7 핵심 DB 전이 원격 RPC 11/11 통과. T7 수강료 월합계=수기계산 통과(2026-06 600,000/카드 400,000/현금 200,000), 수정·삭제 audits 전후기록 검증. T5 리포트 수치·구조 실데이터 일치(T5-2 AI 의견은 OPENAI secret 필요). T9·T11 코드레벨 검증 통과. UX subagent 리뷰 후 `npm --prefix web run typecheck`, `npm --prefix web run build`, `git diff --check` 통과. T12 Bridge/GoAlimi 로컬 하니스 통과.
-- 남은 확인: T1/T2/T3 실제 손 입력 시간 측정, T5-2 OpenAI 실제 fallback, T6 실제 카톡 발송·600~900자 온전성·21시 window, T8 실제 GoAlimi 10분 동기화, T9 실폰 설치/오프라인, T11 실기기 다중세션/GoAlimi 새 탭.
+- QA 결과(2026-07-06): T10 원격 27/27, T13 원격 10/10, T4/T5 함수 원격 10/10, T1/T2/T3/T7 핵심 DB 전이 원격 RPC 11/11 통과. T7 수강료 월합계=수기계산 통과(2026-06 600,000/카드 400,000/현금 200,000), 수정·삭제 audits 전후기록 검증. T5 리포트 수치·구조 실데이터 일치. OpenAI 관련 Supabase secrets 3개(`OPENAI_API_KEY`, `OPENAI_MODEL_PARSE`, `OPENAI_MODEL_REPORT`) 등록 완료. T5-2 AI 의견은 OpenAI `429 insufficient_quota`로 fallback 처리되어 quota/billing 복구 후 재검증 필요. T9·T11 코드레벨 검증 통과. UX subagent 리뷰 후 `npm --prefix web run typecheck`, `npm --prefix web run build`, `git diff --check` 통과. T12 Bridge/GoAlimi 로컬 하니스 통과. Cloudflare Pages `golesson.pages.dev` 배포 완료.
+- 남은 확인: T1/T2/T3 실제 손 입력 시간 측정, T5-2 OpenAI AI 의견 품질(quota/billing 복구 후), T6 실제 카톡 발송·600~900자 온전성·21시 window, T8 실제 GoAlimi 10분 동기화, T9 실폰 설치/오프라인, T11 실기기 다중세션/GoAlimi 새 탭.
 
 ## [6] QA·Go-Live
 

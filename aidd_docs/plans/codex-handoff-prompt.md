@@ -25,7 +25,7 @@ GPT Codex 세션 시작 프롬프트로 사용한다. 기본 정책은 저장소
 - T10 접근/RLS 원격: `RESULT: 27 passed, 0 failed`.
 - T13 트랜잭션 RPC 원격: `RESULT: 10 passed, 0 failed`.
 - T1/T2/T3/T7 핵심 DB 전이 원격 RPC 하니스: `RESULT: 11 passed, 0 failed`.
-- T5 리포트 수치·구조: 실데이터 수기대조 일치. T5-2 AI 의견은 OpenAI secret 필요.
+- T5 리포트 수치·구조: 실데이터 수기대조 일치. T5-2 AI 의견은 `OPENAI_API_KEY`가 Edge Runtime에 보이나 OpenAI `429 insufficient_quota`로 fallback 처리되어 quota/billing 복구 후 재검증 필요.
 - T7 수강료: 2026-06 월합계 600,000원(카드 400,000 / 현금 200,000), audits 전후기록 확인.
 - T9/T11 코드레벨: 320px/44px/PWA/offline draft, GoAlimi 새 탭/iframe 0건/다중세션 코드 없음 확인.
 - T12 Bridge/GoAlimi 로컬 하니스: T6 Bridge 항목, T8, T12-6~7 통과. 마지막 라인 `PASS Bridge integration harness completed`.
