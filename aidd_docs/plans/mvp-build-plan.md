@@ -22,6 +22,8 @@
 | [5] Web PWA | 진행 중 — 구현·운영 env/seed/Auth gate·원격 로그인 smoke 완료. UX subagent 리뷰 반영(typecheck/build/diff-check 통과). T5 수치·구조와 T7 수강료 통과, T1/T2/T3/T7 핵심 DB 전이 원격 RPC 11/11 통과, T9·T11 코드레벨 통과. 남은 것은 실폰 시간측정·OpenAI 의견·실발송·실동기화·실기기 네트워크 |
 | [6] QA·Go-Live | 대기 |
 
+남은 업무 체크리스트(SSOT): `aidd_docs/plans/remaining-work.md` — [5] 잔여와 [6] 전체를 이 보드로 관리한다.
+
 ## [1] GoAlimi API 확장 — GoAlimi 프로젝트에서 별도 작업
 
 - 범위: `custom_messages` 테이블 + `/api/notify/custom` 2개 + `/api/golesson/*` read 3개 (docs/08 §3).

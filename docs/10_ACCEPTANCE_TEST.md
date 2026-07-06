@@ -97,7 +97,7 @@ GoAlimi에 테스트 학생 등록 → 10분 내 GoLesson 표시 / GoAlimi에서
 
 | # | 절차 | 통과 기준 |
 |---|---|---|
-| 1 | 학원 내 다른 기기에서 `/api/notify/custom`·`/api/golesson/*` 호출 | 거부 — 127.0.0.1 전용 |
+| 1 | 학원 내 다른 기기에서 `http://<학원PC-LAN-IP>:8000`의 `/api/notify/custom`·`/api/golesson/*` 호출 | 403 localhost_only 거부 — API는 127.0.0.1 클라이언트 전용, 서버 0.0.0.0 바인딩은 유지 (08 §3.2) |
 | 2 | 같은 dedupe_key로 POST 2회 | 두 번째는 기존 행 반환(200), custom_messages 1행만 존재, 카톡 1회만 발송 |
 | 3 | custom 발송 완료 후 custom_messages 확인 | status=sent + sent_at 갱신 (attendance_logs는 무변화 — 결과 경로 분리) |
 | 4 | custom 발송과 출결 알림 동시 진행 | 서로의 in-flight 중복 방지에 간섭 없음 (식별자 공간 분리) |

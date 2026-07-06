@@ -31,15 +31,10 @@ GPT Codex 세션 시작 프롬프트로 사용한다. 기본 정책은 저장소
 - T12 Bridge/GoAlimi 로컬 하니스: T6 Bridge 항목, T8, T12-6~7 통과. 마지막 라인 `PASS Bridge integration harness completed`.
 - UX subagent 리뷰 반영: 수업 시작 전 폼 숨김, lesson id 반영, 리포트 본문 저장 후 승인/발송, 빠른입력 빈 숫자 방지, PWA navigation network-first. `npm --prefix web run typecheck`, `npm --prefix web run build`, `git diff --check` 통과.
 
-## 남은 실기기/운영 PC QA
+## 남은 업무
 
-- T1/T2/T3: 실제 폰 손 입력과 30초 조작 시간.
-- T5-2: OpenAI fallback 품질.
-- T6: 실제 Bridge polling, GoAlimi, 카톡 수신, 600~900자 온전성, 21시 이후 window.
-- T8: 실제 GoAlimi 10분 동기화와 비활성화 반영.
-- T9: 홈 화면 설치, 비행기 모드, 모바일 실제 기기.
-- T11: PC·폰 동시 세션과 GoAlimi 새 탭 실제 네트워크.
-- 파일럿 종료 후 QA fixture 정리: `supabase/seeds/qa_fixtures_cleanup_preview.sql` 확인 후 사용자 승인으로 `supabase/seeds/qa_fixtures_cleanup.sql` 실행.
+- SSOT는 `aidd_docs/plans/remaining-work.md` 보드다(A 배포 전제 → B 실기기 QA → C Go-Live → D 파일럿).
+- 판정/작업 완료 시 보드를 직접 체크 갱신하고 근거를 붙인다.
 
 ## 재플래그 금지 이력
 
@@ -53,7 +48,7 @@ GPT Codex 세션 시작 프롬프트로 사용한다. 기본 정책은 저장소
 - `AGENTS.md`
 - `aidd_docs/memory/internal/2026-07-06-session-t12-bridge-harness.md`
 - `aidd_docs/memory/internal/2026-07-06-session-ux-subagent-review.md`
-- `aidd_docs/memory/internal/2026-07-05-session-project-review-qa.md`
+- `aidd_docs/plans/remaining-work.md` (남은 업무 보드 — 완료 시 체크+근거 갱신)
 - `docs/10_ACCEPTANCE_TEST.md`
 - `docs/09_DEPLOY.md §4.3`
 - `docs/04_DATABASE.md §3, §5`

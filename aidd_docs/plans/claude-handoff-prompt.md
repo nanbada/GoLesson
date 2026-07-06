@@ -28,16 +28,19 @@ Goal: GoLesson MVP 출시 전 남은 실기기/운영 PC QA를 끝내고, 결과
 - T5 수치·구조, T7 수강료는 수동+DB 대조 통과. T9/T11은 코드레벨 통과, 실기기만 남음.
 - Bridge/GoAlimi 로컬 하니스: T6 Bridge 항목, T8, T12-6~7 PASS. 마지막 라인: PASS Bridge integration harness completed.
 
+남은 배포 전제와 실기기 QA 목록의 SSOT는 aidd_docs/plans/remaining-work.md 보드다(A 배포 전제 → B 실기기 QA). 시작 시 보드를 읽고, 항목 완료 시 체크+근거로 갱신한다.
+
 필수로 먼저 읽을 파일:
 - CLAUDE.md
 - aidd_docs/memory/internal/2026-07-06-session-ux-subagent-review.md
 - aidd_docs/memory/internal/2026-07-06-session-t12-bridge-harness.md
-- aidd_docs/memory/internal/2026-07-05-session-project-review-qa.md
+- aidd_docs/plans/remaining-work.md (남은 업무 보드 — 완료 시 체크+근거 갱신)
 - docs/10_ACCEPTANCE_TEST.md
 - docs/09_DEPLOY.md §4.3
 
 보조 확인 파일:
 - aidd_docs/plans/mvp-build-plan.md
+- aidd_docs/archive/2026-07-05-session-project-review-qa.md (지난 QA 상세)
 - aidd_docs/fixtures/mvp-seed-data.md
 - docs/03_UI_SPEC.md §0, §7
 - docs/08_GOALIMI.md §3~§5
@@ -55,7 +58,7 @@ Goal: GoLesson MVP 출시 전 남은 실기기/운영 PC QA를 끝내고, 결과
 실행 방식:
 1. 먼저 위 완료/미완료 상태가 실제 파일·대시보드와 맞는지 확인한다.
 2. 남은 QA만 수행한다. 이미 통과한 자동 QA를 반복하지 않는다.
-3. PASS/FAIL/PARTIAL을 docs/10 §2와 새 memory 파일에 근거와 함께 남긴다.
+3. PASS/FAIL/PARTIAL을 docs/10 §2와 새 memory 파일에 근거와 함께 남기고, remaining-work.md 보드를 체크 갱신한다.
 
 You're the lead. Show the shortest executable QA plan first, then execute.
 ```

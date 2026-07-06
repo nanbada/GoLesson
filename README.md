@@ -19,6 +19,7 @@ Date: 2026-07-06 KST.
 
 Latest detailed status lives in:
 
+- `aidd_docs/plans/remaining-work.md` — live board of remaining work
 - `aidd_docs/plans/mvp-build-plan.md`
 - `aidd_docs/memory/internal/2026-07-06-session-ux-subagent-review.md`
 - `aidd_docs/memory/internal/2026-07-06-session-t12-bridge-harness.md`
@@ -66,6 +67,7 @@ Core decisions:
 | `aidd_docs/plans/` | build plan and handoff prompts |
 | `aidd_docs/fixtures/` | QA fixture specification |
 | `aidd_docs/memory/internal/` | session handoff history |
+| `aidd_docs/archive/` | superseded handoffs and history docs |
 | `AGENTS.md` | Codex/agent working rules |
 | `CLAUDE.md` | Claude working rules, with orchestration details |
 
@@ -73,7 +75,7 @@ Core decisions:
 
 1. Read `AGENTS.md` or `CLAUDE.md`.
 2. Read the latest file in `aidd_docs/memory/internal/`.
-3. Check `aidd_docs/plans/mvp-build-plan.md`.
+3. Check `aidd_docs/plans/remaining-work.md` (remaining work board) and `aidd_docs/plans/mvp-build-plan.md`.
 4. Use `docs/00_PROJECT.md` through `docs/11_GOALIMI_INTEGRATION_STUDY.md` as design SSOT.
 
 Conflict priority:

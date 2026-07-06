@@ -80,7 +80,7 @@
 | 11_GOALIMI_INTEGRATION_STUDY | GoAlimi 통합 vs 분리 연구 (결론: 분리 + 재검토 트리거) | 기획 |
 
 충돌 시 우선순위: 01_PRD > 06_BUSINESS_RULE > 각 상세 문서.
-참고: `GoLesson AI용 추천 구조 및 개발자료.md`는 ChatGPT 검토 원본(히스토리)이며 SSOT 아님.
+참고: ChatGPT 검토 원본(히스토리)은 `aidd_docs/archive/GoLesson AI용 추천 구조 및 개발자료.md`로 이동. SSOT 아님.
 
 개발 보조 문서(SSOT 아님, `aidd_docs/`): `plans/mvp-build-plan.md`(구축 순서·완료 기준), `fixtures/mvp-seed-data.md`(QA seed — 10 §3 고정 문장과 짝), `memory/internal/`(세션 간 핸드오프 기록 — 세션 시작 시 최신 파일 확인).
 

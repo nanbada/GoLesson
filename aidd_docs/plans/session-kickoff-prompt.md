@@ -13,9 +13,10 @@
 - [5] Web PWA 진행 중: 구현·정적 빌드·운영 env/seed/Auth gate·원격 로그인 smoke 완료. UX subagent 리뷰 반영(typecheck/build/diff-check 통과). T5 수치·구조, T7 수강료, T1/T2/T3/T7 핵심 DB 전이는 통과. 남은 것은 실폰/운영 PC에서만 판정 가능한 항목.
 
 최신 근거:
+- `aidd_docs/plans/remaining-work.md` (남은 업무 보드)
 - `aidd_docs/memory/internal/2026-07-06-session-t12-bridge-harness.md`
 - `aidd_docs/memory/internal/2026-07-06-session-ux-subagent-review.md`
-- `aidd_docs/memory/internal/2026-07-05-session-project-review-qa.md`
+- `aidd_docs/archive/2026-07-05-session-project-review-qa.md`
 - `aidd_docs/plans/mvp-build-plan.md`
 - `docs/09_DEPLOY.md`
 - `docs/10_ACCEPTANCE_TEST.md`
@@ -35,7 +36,7 @@ Goal: GoLesson MVP 출시 전 남은 실기기/운영 PC QA 완료.
 - QA fixture cleanup: 파일럿 종료 시점에는 preview SQL로 count 확인 후 cleanup SQL 실행 계획만 기록한다. 실제 삭제는 사용자 승인 후 별도 수행.
 
 Context: 설계 SSOT docs/00~11 (01 > 06 > 상세). 프론트는 Next 정적 export 유지. 서버 로직은 Supabase Edge Functions, 일반 CRUD는 supabase-js+RLS.
-필수 파일: CLAUDE.md, aidd_docs/plans/claude-handoff-prompt.md, aidd_docs/memory/internal/2026-07-06-session-ux-subagent-review.md, aidd_docs/memory/internal/2026-07-06-session-t12-bridge-harness.md, docs/10_ACCEPTANCE_TEST.md, docs/09_DEPLOY.md §4.3.
+필수 파일: CLAUDE.md, aidd_docs/plans/remaining-work.md, aidd_docs/plans/claude-handoff-prompt.md, aidd_docs/memory/internal/2026-07-06-session-ux-subagent-review.md, aidd_docs/memory/internal/2026-07-06-session-t12-bridge-harness.md, docs/10_ACCEPTANCE_TEST.md, docs/09_DEPLOY.md §4.3.
 주의: 커밋/푸시는 요청 전 금지. service_role/sb_secret/OpenAI 키를 채팅·문서·git에 남기지 않는다. supabase config push 금지. 발송 테스트는 7707 신성화만. QA fixture 삭제는 `supabase/seeds/qa_fixtures_cleanup_preview.sql` → `supabase/seeds/qa_fixtures_cleanup.sql` 순서이며, 실행 전 Bridge 중지 또는 GoAlimi 테스트 학생 비활성/삭제가 필요하다.
 
 You're the lead. Show the shortest executable QA plan first, then execute.
@@ -65,7 +66,7 @@ Goal: aidd_docs/plans/mvp-build-plan.md의 [N단계] — [산출물 한 줄].
 완료 기준: docs/10_ACCEPTANCE_TEST.md [해당 T항목] 통과.
 
 Context: 설계 SSOT는 docs/00~11 (01 > 06 > 상세). CLAUDE.md 절대 규칙 준수.
-직전 상태: aidd_docs/memory/internal/ 최신 핸드오프.
+직전 상태: aidd_docs/memory/internal/ 최신 핸드오프. 남은 업무: aidd_docs/plans/remaining-work.md.
 
 You're the lead. Show the shortest executable plan first, then execute.
 ```
