@@ -4,16 +4,18 @@
 
 토큰 제한이 빡빡하면 `aidd_docs/plans/claude-handoff-prompt.md`의 단축 프롬프트를 우선 사용한다.
 
-## 1. 현재 상태 (2026-07-06)
+## 1. 현재 상태 (2026-07-10)
 
 - [1] GoAlimi API 확장 완료: GoAlimi `f9df186`, mock 모드 T12-1~5 + 재기동 복구 검증 통과. 장문 900자 실측은 Go-Live에서 확인.
 - [2] Supabase 기반 완료: 서울 프로젝트 `dqibhcadjxqmvahcewfn`, 마이그레이션 local/remote 일치, 원격 T10 27/27 통과.
 - [3] Edge Functions 완료: `parse-batch`, `generate-report`, `enqueue-report` 원격 배포 version 3 ACTIVE, 원격 T4/T5 하니스 10/10 통과.
 - [4] Bridge 완료: `bridge/` 구현, 단위테스트 9개, GoAlimi Mock + 로컬 Supabase 통합 하니스 T6·T8·T12-6~7 통과.
-- [5] Web PWA 진행 중: 구현·정적 빌드·운영 env/seed/Auth gate·원격 로그인 smoke 완료, Cloudflare Pages `https://golesson.pages.dev` 배포 완료. UX subagent 리뷰 반영(typecheck/build/diff-check 통과). T5 수치·구조, T7 수강료, T1/T2/T3/T7 핵심 DB 전이는 통과. T5-2 AI 의견은 OpenAI `429 insufficient_quota` 해소 후 재검증. 남은 것은 실폰/운영 PC에서만 판정 가능한 항목.
+- [5] Web PWA 진행 중: 2026-07-06 버전은 Cloudflare Pages `https://golesson.pages.dev` 배포 완료. 2026-07-10 로컬 소스에는 시간대별 약 5명 그룹, 학생별 오늘 진도·과제·코칭 상태, 4탭 내비게이션(리포트는 더보기), 이메일 로그인 안내가 반영됐고 typecheck/build/diff-check 통과. 아직 커밋·푸시·재배포 및 인증된 오늘 화면/실폰 검증은 안 됨.
 
 최신 근거:
 - `aidd_docs/plans/remaining-work.md` (남은 업무 보드)
+- `aidd_docs/memory/internal/2026-07-10-session-time-block-coaching-login.md`
+- `aidd_docs/memory/internal/2026-07-10-session-agents-optimization.md`
 - `aidd_docs/memory/internal/2026-07-06-session-t12-bridge-harness.md`
 - `aidd_docs/memory/internal/2026-07-06-session-ux-subagent-review.md`
 - `aidd_docs/archive/2026-07-05-session-project-review-qa.md`
@@ -27,7 +29,7 @@
 Goal: GoLesson MVP 출시 전 남은 실기기/운영 PC QA 완료.
 
 완료 기준:
-- T1/T2/T3: 실제 폰으로 오늘 수업 시작→진도→과제→완료를 수행하고 REQ-902 30초 조작 시간을 측정.
+- T1/T2/T3: 실제 폰에서 같은 시각 학생 약 5명 블록 → 학생별 코칭 시작→진도→과제→완료 → 블록 완료 수·오늘 요약 갱신을 확인하고 REQ-902 학생당 30초 조작 시간을 측정.
 - T5-2: OpenAI quota/billing 복구 후 AI 의견 품질 확인. 현재 secret은 보이나 OpenAI `429 insufficient_quota`로 fallback 처리됨.
 - T6: 테스트 학생 7707 신성화로 실제 Bridge/GoAlimi/카톡 발송, dedupe, GoAlimi down recovery, 21시 window 확인.
 - T8: 실제 GoAlimi 등록/비활성화가 Bridge 10분 주기 안에 반영되는지 확인.
@@ -36,7 +38,7 @@ Goal: GoLesson MVP 출시 전 남은 실기기/운영 PC QA 완료.
 - QA fixture cleanup: 파일럿 종료 시점에는 preview SQL로 count 확인 후 cleanup SQL 실행 계획만 기록한다. 실제 삭제는 사용자 승인 후 별도 수행.
 
 Context: 설계 SSOT docs/00~11 (01 > 06 > 상세). 프론트는 Next 정적 export 유지. 서버 로직은 Supabase Edge Functions, 일반 CRUD는 supabase-js+RLS.
-필수 파일: CLAUDE.md, aidd_docs/plans/remaining-work.md, aidd_docs/plans/claude-handoff-prompt.md, aidd_docs/memory/internal/2026-07-06-session-ux-subagent-review.md, aidd_docs/memory/internal/2026-07-06-session-t12-bridge-harness.md, docs/10_ACCEPTANCE_TEST.md, docs/09_DEPLOY.md §4.3.
+필수 파일: CLAUDE.md, aidd_docs/plans/remaining-work.md, aidd_docs/plans/claude-handoff-prompt.md, aidd_docs/memory/internal/2026-07-10-session-time-block-coaching-login.md, aidd_docs/memory/internal/2026-07-10-session-agents-optimization.md, docs/10_ACCEPTANCE_TEST.md, docs/09_DEPLOY.md §4.3.
 주의: 커밋/푸시는 요청 전 금지. service_role/sb_secret/OpenAI 키를 채팅·문서·git에 남기지 않는다. supabase config push 금지. 발송 테스트는 7707 신성화만. QA fixture 삭제는 `supabase/seeds/qa_fixtures_cleanup_preview.sql` → `supabase/seeds/qa_fixtures_cleanup.sql` 순서이며, 실행 전 Bridge 중지 또는 GoAlimi 테스트 학생 비활성/삭제가 필요하다.
 
 You're the lead. Show the shortest executable QA plan first, then execute.

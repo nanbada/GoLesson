@@ -12,7 +12,7 @@ group by 1, 2, 3;
 
 -- Today's lessons (REQ-202): per-slot status matching -- joining on
 -- schedule_slot_id keeps per-slot status correct even with two lessons of the
--- same subject on the same day (makeup, BR-201).
+-- same subject on the same day (makeup, BR-202).
 -- Makeup lessons (schedule_slot_id null) are fetched separately by the front
 -- from today's lessons and merged into the timeline.
 create view v_today_lessons with (security_invoker = on) as

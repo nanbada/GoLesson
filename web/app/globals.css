@@ -244,10 +244,46 @@ a {
 }
 
 .lesson-list,
+.time-group-list,
 .student-list,
 .compact-list {
   display: grid;
   gap: 8px;
+}
+
+.time-group-list {
+  gap: 12px;
+}
+
+.time-group {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.time-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  background: #eef8f6;
+}
+
+.time-group-header > span {
+  max-width: 150px;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.time-group .lesson-list {
+  gap: 0;
 }
 
 .lesson-card,
@@ -264,10 +300,16 @@ a {
 
 .lesson-card {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   padding: 10px;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+
+.time-group .lesson-card:last-child {
+  border-bottom: 0;
 }
 
 .lesson-card.in_progress {
@@ -291,6 +333,13 @@ a {
   display: grid;
   gap: 3px;
   min-width: 0;
+}
+
+.lesson-main strong small {
+  margin-left: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .lesson-main span,
@@ -421,7 +470,7 @@ a {
   width: min(100%, 640px);
   transform: translateX(-50%);
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   padding: 8px 8px max(8px, env(safe-area-inset-bottom));
   background: color-mix(in srgb, var(--surface) 94%, transparent);

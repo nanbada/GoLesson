@@ -88,7 +88,8 @@ create table enrollments (
   unique (student_id, subject)
 );
 
--- 주간 스케줄 (오늘 화면의 근간)
+-- 학생별 주간 슬롯 (오늘 화면의 근간). 같은 weekday+start_time 슬롯은
+-- 학년·과목·레벨과 무관하게 하나의 운영 블록으로 파생 그룹화한다.
 create table schedule_slots (
   id            bigint generated always as identity primary key,
   enrollment_id bigint not null references enrollments(id) on delete cascade,
@@ -97,7 +98,7 @@ create table schedule_slots (
   duration_min  integer not null default 40
 );
 
--- 수업 (학생×과목×1회)
+-- 운영 블록 안의 학생별 코칭 기록 (학생×과목×1회)
 create table lessons (
   id         bigint generated always as identity primary key,
   student_id bigint not null references students(id),
@@ -105,7 +106,7 @@ create table lessons (
   subject    text not null check (subject in ('영어','수학')),
   schedule_slot_id bigint references schedule_slots(id) on delete set null,
                    -- 스케줄에서 시작한 수업은 슬롯 연결, 보강(임시 수업)은 null.
-                   -- 같은 날 같은 과목 2회(BR-201) 구분과 오늘 화면 상태 매칭에 사용
+                   -- 같은 날 같은 과목 2회(BR-202) 구분과 오늘 화면 상태 매칭에 사용
   lesson_date date not null default current_date,
   started_at timestamptz,
   ended_at   timestamptz,
@@ -364,7 +365,7 @@ from payments p join payment_items i on i.payment_id = p.id
 group by 1, 2, 3;
 
 -- 오늘 수업 (REQ-202): 슬롯 단위 상태 매칭 — schedule_slot_id로 join해야
--- 같은 날 같은 과목 2회(보강, BR-201)에도 슬롯별 상태가 정확하다.
+-- 같은 날 같은 과목 2회(보강, BR-202)에도 슬롯별 상태가 정확하다.
 -- 보강 수업(schedule_slot_id null)은 프론트가 당일 lessons에서 별도 조회해 타임라인에 병합
 create view v_today_lessons with (security_invoker = on) as
 select ss.id as schedule_slot_id, e.student_id, e.subject,

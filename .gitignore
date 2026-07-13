@@ -24,6 +24,7 @@ supabase/.branches/
 .claude/scheduled_tasks.lock
 
 # runtime
+.local-test/
 bridge/logs/
 backup/
 *.log

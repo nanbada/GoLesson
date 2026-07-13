@@ -17,10 +17,11 @@
 - [ ] A3. 학원 PC 설치: GoAlimi `f9df186` 이후로 최신화 + Bridge 설치(bridge_config.json, run_bridge.bat, Task Scheduler ONLOGON) (docs/09 §4.3) — B3/B4 전제. 주의: GoAlimi requirements.txt에 greenlet 명시 없음(T12 하니스에서 async 기동에 필요했음) → 최신화 후 기동 확인, 실패 시 PC venv에 greenlet>=3,<4 설치 또는 GoAlimi repo requirements 반영.
 - [ ] A4. `app_settings.goalimi_admin_url` 설정 — 반드시 `http://<학원PC-LAN-IP>:8000/admin` 형식. 미설정 기본값 `http://127.0.0.1:8000/admin`(web/app/page.tsx:1167)은 폰에서 폰 자신을 가리켜 T11-3 검증 불가 — B6(T11-3) 전제.
 - [ ] A5. OpenAI 계정 quota/billing 복구 — Edge Runtime에서 `OPENAI_API_KEY`는 보이나 OpenAI가 `429 insufficient_quota`를 반환해 AI 의견 생성이 fallback 처리됨. B2 전제.
+- [ ] A6. 운영 Supabase Auth 비밀번호 정책을 영문+숫자 8자 이상으로 확인하고 전화번호 끝 6자리 등 개인정보 기반 비밀번호가 있으면 교체. 로컬 `supabase/config.toml`은 동일 정책으로 정렬했지만 `supabase config push`는 금지이므로 Dashboard 설정은 별도 확인 필요.
 
 ## B. 실기기/운영 QA (docs/10 시나리오 기준)
 
-- [ ] B1. T1/T2/T3 — 실폰에서 오늘 수업 시작→진도→과제→완료, REQ-902 30초 조작 시간 측정 (A1 후).
+- [ ] B1. T1/T2/T3 — 실폰에서 같은 시각 학생 약 5명이 한 블록으로 묶이는지 확인 → 학생별 코칭 시작→진도→과제→완료, 블록 완료 수·오늘 요약 갱신, REQ-902 학생당 30초 조작 시간 측정 (A1 후).
 - [ ] B2. T5-2 — AI 의견이 입력 코멘트 밖의 사실·수치를 만들지 않는지 확인. 현재 차단: API key는 Edge Runtime에 보이나 OpenAI가 `429 insufficient_quota`를 반환해 `generate-report`가 `ai_used=false` fallback으로 성공함. quota/billing 복구 후 재검증(A5 후).
 - [ ] B3. T6 — 7707 신성화 실발송: 카톡 수신, 600~900자 온전성, dedupe 409, GoAlimi 중지 시 pending 유지, 21시 이후 window (A3 후).
 - [ ] B4. T8 — GoAlimi 학생 등록/비활성화가 Bridge 10분 주기 내 GoLesson에 반영 (A3 후).

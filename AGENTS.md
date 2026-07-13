@@ -1,16 +1,36 @@
 # GoLesson - Agent Instructions
 
-Small 1:1 academy operations tool for elementary English/math.
+Small time-block academy operations tool for elementary English/math with rotating 1:1 coaching.
 Target users: 1 owner, 1-3 teachers, 10-30 students. This is not an ERP.
+
+## Agent Orchestration
+
+- The root orchestrator owns scope, constraints, routing, user communication, write authority, conflict resolution, integration, and final verification. Work directly when delegation costs more than it saves.
+- Preferred models when per-agent selection is available:
+  - **Sol (`gpt-5.6-sol`)**: root orchestration plus ambiguous, high-risk, architecture, security, cross-cutting, and final-quality work. Medium reasoning first; raise only for consequential uncertainty.
+  - **Terra (`gpt-5.6-terra`)**: bounded complex implementation, root-cause tracing, multi-file review, API research, and test design. Medium by default; high for difficult edge cases.
+  - **Luna (`gpt-5.6-luna`)**: targeted search, inventory, extraction, formatting, mechanical edits, deterministic checks, and concise summaries. Low reasoning.
+  - **GPT-5.5**: exception only for 5.6 unavailability, pinned compatibility, or an independent previous-generation second opinion. Not a routine worker.
+- Sol is deepest; Terra is the balanced workhorse; Luna is the fast repeatable-task worker. If model selection is unavailable, preserve these role boundaries and never claim a model ran.
+- Delegate only independent or noisy read-heavy lanes. Avoid delegation for trivial, serial, user-blocked, or tightly coupled work. Default cap: root + two workers, depth one.
+- Prefer read-only parallel audits. The root edits shared files unless write scopes are disjoint, waits for workers, integrates distilled results, and rechecks decisive evidence.
+- Sol directly reviews final decisions involving Sending Safety, RLS/GRANT, GoAlimi contracts, irreversible production actions, and history preservation.
+
+## Context and Token Discipline
+
+- Start with `rg`/`rg --files`; read only relevant ranges, never all `docs/00` through `docs/11` by default.
+- Worker prompts contain only objective, scope, constraints, ownership, done criteria, and evidence. Workers return distilled decisions, risks, `file:line`/command evidence, and unknowns, not raw logs or full files.
+- Batch independent checks, cap output, and quote only decisive error lines. Link SSOT instead of copying it into plans or memory.
+- Use the lowest-cost reliable model and reasoning level. Do not spawn every role automatically.
 
 ## First Read
 
 - At session start, read the latest file in `aidd_docs/memory/internal/`.
-- At session end, record decisions and unfinished work in a new file in the same folder.
-- Use `aidd_docs/plans/mvp-build-plan.md` for current stage/status.
-- Use `docs/00_PROJECT.md` through `docs/11_GOALIMI_INTEGRATION_STUDY.md` as design SSOT.
-- Conflict priority: `docs/01_PRD.md` > `docs/06_BUSINESS_RULE.md` > detailed docs.
-- Use `aidd_docs/plans/remaining-work.md` as the live board of remaining go-live work. When you finish or discover work, update the board with evidence.
+- For material work, read only the relevant sections of `aidd_docs/plans/mvp-build-plan.md` and `aidd_docs/plans/remaining-work.md`; the latter is the live go-live board and must be updated with evidence when work is finished or discovered.
+- Route design questions through `docs/01_PRD.md`, then `docs/06_BUSINESS_RULE.md`, then the relevant detailed document. Do not read unrelated SSOT files.
+- Document routing: UI `01/02/03`; DB/RLS/API `04/05/06`; AI/parser/report `07`; GoAlimi/sending `08`; deploy `09`; release `10`; integration study `11` only when explicitly reopened.
+- Conflict priority: `docs/01_PRD.md` > `docs/06_BUSINESS_RULE.md` > detailed docs > implementation.
+- After material decisions, verified changes, or unfinished work, create one concise session file in `aidd_docs/memory/internal/`. Skip memory churn for simple read-only answers with no durable outcome.
 - Superseded handoffs and the pre-project history doc live in `aidd_docs/archive/`. Do not treat them as SSOT.
 
 ## Current Architecture
@@ -58,7 +78,7 @@ Target users: 1 owner, 1-3 teachers, 10-30 students. This is not an ERP.
 - Migrations must handle RLS and explicit GRANT together. Do not assume Data API exposure.
 - `students`, `parents`, `attendance`: client select only; insert/update/delete via Bridge/service_role only.
 - `parse_logs`: client may update only its own row status as specified in `docs/04_DATABASE.md`.
-- Transactional multi-table writes should use Postgres RPC or Edge Functions. Current key RPCs: `save_lesson_log(jsonb)`, `save_payment_with_items(jsonb)`, `claim_outbox`.
+- Transactional multi-table writes should use Postgres RPC or Edge Functions. Confirm current RPC contracts in `docs/04_DATABASE.md`, `docs/05_API_SPEC.md`, and the actual migrations before changing them.
 - `supabase config push` is forbidden unless the user explicitly requests and current local config has been audited against production.
 
 ## Frontend/UX Rules
@@ -80,15 +100,13 @@ Target users: 1 owner, 1-3 teachers, 10-30 students. This is not an ERP.
 - Release judgment follows `docs/10_ACCEPTANCE_TEST.md`, not automated E2E alone.
 - Parser changes must be checked against fixed sentences in `docs/10_ACCEPTANCE_TEST.md` and `aidd_docs/fixtures/mvp-seed-data.md`. Target: 5-element mapping at 95% or higher (19/20).
 - AI is fallback only. Regex/dictionary parsing comes first, and report numbers are computed by code.
-- Remaining go-live QA is mostly real-device/academy-PC work: T1/T2/T3 timing, T5-2 OpenAI quality, T6 real Kakao send, T8 real GoAlimi sync, T9 phone/PWA, T11 multi-device/network.
+- Current go-live status belongs only in `aidd_docs/plans/remaining-work.md`; do not duplicate it here.
 - QA fixture cleanup is prepared in `supabase/seeds/qa_fixtures_cleanup_preview.sql` and `supabase/seeds/qa_fixtures_cleanup.sql`. Actual cleanup needs user approval and Bridge/GoAlimi re-sync precautions.
 
-## Repository Map
+## Verification Commands
 
-```text
-web/       Next.js static PWA
-supabase/  migrations, Edge Functions, seeds, tests
-bridge/    academy PC worker
-docs/      design SSOT docs 00-11
-aidd_docs/ plans, fixtures, session memory, archive
-```
+- Every change: `git diff --check` plus a targeted diff review.
+- Web code: `npm --prefix web run typecheck`; also run `npm --prefix web run build` for runtime, dependency, config, PWA, or pre-handoff changes.
+- Bridge code: `python3 -m unittest bridge.tests.test_bridge`.
+- Parser, DB, Edge Function, integration, or release changes: run only the relevant harness defined in `docs/10_ACCEPTANCE_TEST.md`; inspect its prerequisites first and do not guess remote flags or credentials.
+- Use Python 3.12 for the Bridge/GoAlimi integration harness. Real Kakao sends, production mutations, fixture cleanup, and remote destructive tests remain approval-gated by the safety rules above.

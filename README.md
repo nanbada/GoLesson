@@ -94,6 +94,23 @@ npm --prefix web run build
 npm --prefix web run dev -- --hostname 127.0.0.1 --port 3100
 ```
 
+Local test environment (Supabase + Edge Functions + web):
+
+```bash
+scripts/local-test.sh start
+# Fresh local fixtures and test users (deletes only the local database):
+scripts/local-test.sh start --reset-db
+
+# Stop only processes started by the script:
+scripts/local-test.sh stop
+# Also stop the local Supabase containers without deleting volumes:
+scripts/local-test.sh stop --stop-supabase
+```
+
+The local test users are `owner@example.com` and `teacher1@example.com`, both
+with password `localtest1234`. The script refuses non-local Supabase URLs and
+does not start the Bridge or send KakaoTalk messages.
+
 Bridge unit tests:
 
 ```bash

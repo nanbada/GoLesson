@@ -69,7 +69,8 @@ create table enrollments (
   unique (student_id, subject)
 );
 
--- Weekly schedule (basis of the Today screen)
+-- Weekly student slots (basis of the Today screen). Slots sharing weekday +
+-- start_time form one operating block regardless of grade, subject, or level.
 create table schedule_slots (
   id            bigint generated always as identity primary key,
   enrollment_id bigint not null references enrollments(id) on delete cascade,
@@ -78,7 +79,7 @@ create table schedule_slots (
   duration_min  integer not null default 40
 );
 
--- Lessons (student x subject x one session)
+-- Lessons (student x subject x one coaching record inside an operating block)
 create table lessons (
   id         bigint generated always as identity primary key,
   student_id bigint not null references students(id),
@@ -87,7 +88,7 @@ create table lessons (
   schedule_slot_id bigint references schedule_slots(id) on delete set null,
                    -- Lessons started from the schedule link to their slot; makeup
                    -- (ad-hoc) lessons are null. Used to distinguish two lessons of
-                   -- the same subject on the same day (BR-201) and to match status
+                   -- the same subject on the same day (BR-202) and to match status
                    -- on the Today screen.
   lesson_date date not null default current_date,
   started_at timestamptz,

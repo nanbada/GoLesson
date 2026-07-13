@@ -45,8 +45,8 @@ import type {
   Textbook
 } from "./lib/types";
 
-type View = "today" | "students" | "quick" | "reports" | "more";
-type MoreView = "menu" | "payments" | "textbooks" | "outbox" | "shortcut" | "settings";
+type View = "today" | "students" | "quick" | "more";
+type MoreView = "menu" | "reports" | "payments" | "textbooks" | "outbox" | "shortcut" | "settings";
 type LessonTarget = {
   lessonId?: Id;
   studentId: Id;
@@ -411,8 +411,7 @@ function GoLessonApp() {
 
   const wideLayout = !lessonTarget && (
     view === "students" ||
-    view === "reports" ||
-    (view === "more" && ["payments", "textbooks", "settings"].includes(moreView))
+    (view === "more" && ["reports", "payments", "textbooks", "settings"].includes(moreView))
   );
 
   return (
@@ -445,8 +444,6 @@ function GoLessonApp() {
           <StudentsScreen data={data} actions={actions} />
         ) : view === "quick" ? (
           <QuickInputScreen data={data} actions={actions} />
-        ) : view === "reports" ? (
-          <ReportsScreen data={data} actions={actions} />
         ) : (
           <MoreScreen
             data={data}
@@ -462,7 +459,6 @@ function GoLessonApp() {
         <TabButton label="오늘" active={view === "today"} icon={<Home size={20} />} onClick={() => { setLessonTarget(null); setView("today"); }} />
         <TabButton label="학생" active={view === "students"} icon={<Users size={20} />} onClick={() => { setLessonTarget(null); setView("students"); }} />
         <TabButton label="빠른입력" active={view === "quick"} icon={<Wand2 size={20} />} onClick={() => { setLessonTarget(null); setView("quick"); }} />
-        <TabButton label="리포트" active={view === "reports"} icon={<MessageSquareText size={20} />} onClick={() => { setLessonTarget(null); setView("reports"); }} />
         <TabButton label="더보기" active={view === "more"} icon={<MoreHorizontal size={20} />} onClick={() => { setLessonTarget(null); setMoreView("menu"); setView("more"); }} />
       </nav>
     </main>
@@ -475,6 +471,7 @@ function TodayScreen({ data, actions }: { data: AppData; actions: AppActions }) 
   const [subject, setSubject] = useState<Subject>("영어");
   const today = todaySeoul();
   const items = todayItems(data, today);
+  const groups = groupTodayItems(items);
   const stale = bridgeWarning(data);
 
   return (
@@ -493,25 +490,44 @@ function TodayScreen({ data, actions }: { data: AppData; actions: AppActions }) 
       {items.length === 0 ? (
         <EmptyState title="오늘 수업이 없습니다" action="보강 수업 추가" onAction={() => setAddOpen(true)} />
       ) : (
-        <div className="lesson-list">
-          {items.map((item) => {
-            const student = findStudent(data, item.studentId);
-            const last = lastProgressSummary(data, item.studentId, item.subject, today);
-            const pendingHw = data.homeworks.filter((h) => h.student_id === item.studentId && h.subject === item.subject && h.status === "assigned").length;
+        <div className="time-group-list">
+          {groups.map((group) => {
+            const active = group.items.filter((item) => item.status !== "canceled");
+            const done = active.filter((item) => item.status === "done").length;
+            const duration = group.items.find((item) => item.durationMin)?.durationMin ?? 40;
             return (
-              <button
-                key={item.key}
-                className={`lesson-card ${item.status}`}
-                onClick={() => actions.openLesson({ lessonId: item.lesson?.id, studentId: item.studentId, subject: item.subject, scheduleSlotId: item.scheduleSlotId, startTime: item.startTime })}
-              >
-                <span className="time">{formatTime(item.startTime) || "보강"}</span>
-                <span className="lesson-main">
-                  <strong>{student?.name ?? "학생"}</strong>
-                  <span>{item.subject} · {last || "직전 진도 없음"}</span>
-                  {pendingHw > 0 ? <em>미체크 과제 {pendingHw}건</em> : null}
-                </span>
-                <StatusPill status={item.status} />
-              </button>
+              <section className="time-group" key={group.key}>
+                <header className="time-group-header">
+                  <div>
+                    <p className="eyebrow">{group.label}</p>
+                    <h3>{group.items.length}명 · 코칭 {done}/{active.length}</h3>
+                  </div>
+                  <span>{duration}분 수업 + 40분 과제·보강</span>
+                </header>
+                <div className="lesson-list">
+                  {group.items.map((item) => {
+                    const student = findStudent(data, item.studentId);
+                    const todayProgress = item.lesson ? lessonProgressSummary(data, item.lesson.id) : "";
+                    const todayHomework = item.lesson ? lessonHomeworkSummary(data, item.lesson.id) : "";
+                    const last = lastProgressSummary(data, item.studentId, item.subject, today);
+                    const pendingHw = data.homeworks.filter((h) => h.student_id === item.studentId && h.subject === item.subject && h.status === "assigned").length;
+                    return (
+                      <button
+                        key={item.key}
+                        className={`lesson-card ${item.status}`}
+                        onClick={() => actions.openLesson({ lessonId: item.lesson?.id, studentId: item.studentId, subject: item.subject, scheduleSlotId: item.scheduleSlotId, startTime: item.startTime })}
+                      >
+                        <span className="lesson-main">
+                          <strong>{student?.name ?? "학생"} <small>{item.subject}</small></strong>
+                          <span>{item.lesson ? `오늘 진도 ${todayProgress || "미입력"}` : `직전 진도 ${last || "없음"}`}</span>
+                          <em>{item.lesson ? `오늘 과제 ${todayHomework || "없음"}` : pendingHw > 0 ? `미체크 과제 ${pendingHw}건` : "미체크 과제 없음"}</em>
+                        </span>
+                        <StatusPill status={item.status} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
             );
           })}
         </div>
@@ -587,11 +603,11 @@ function LessonScreen({ data, target, actions }: { data: AppData; target: Lesson
       <button type="button" className="back-button" onClick={actions.closeLesson}><ChevronLeft size={18} /> 오늘으로</button>
       <section className="panel">
         <p className="eyebrow">{student?.name ?? "학생"} · {target.subject} · {formatTime(target.startTime)}</p>
-        <h2>{lesson?.status === "done" ? "완료 수업 수정" : "수업 기록"}</h2>
+        <h2>{lesson?.status === "done" ? "완료 코칭 기록 수정" : "1:1 코칭 기록"}</h2>
         {previous ? <p className="muted">지난 수업: {previous}</p> : <p className="muted">지난 수업 기록 없음</p>}
         {!lesson?.started_at ? (
           <button type="button" className="primary-button" onClick={() => void actions.startLesson(target)}>
-            <Clock3 size={18} /> 수업 시작
+            <Clock3 size={18} /> 1:1 코칭 시작
           </button>
         ) : null}
         {!isStarted ? (
@@ -662,7 +678,7 @@ function LessonScreen({ data, target, actions }: { data: AppData; target: Lesson
           </section>
 
           <div className="sticky-actions">
-            <button type="submit" className="primary-button"><Check size={18} /> 수업 완료</button>
+            <button type="submit" className="primary-button"><Check size={18} /> 코칭 기록 완료</button>
           </div>
           <button type="button" className="cancel-link-button" onClick={() => {
             if (!window.confirm("이 수업을 결석/취소로 기록할까요?")) return;
@@ -927,7 +943,7 @@ function QuickInputScreen({ data, actions }: { data: AppData; actions: AppAction
   );
 }
 
-function ReportsScreen({ data, actions }: { data: AppData; actions: AppActions }) {
+function ReportsScreen({ data, actions, onBack }: { data: AppData; actions: AppActions; onBack: () => void }) {
   const today = todaySeoul();
   const [start, setStart] = useState(addDays(today, -13));
   const [end, setEnd] = useState(today);
@@ -950,7 +966,9 @@ function ReportsScreen({ data, actions }: { data: AppData; actions: AppActions }
   return (
     <div className="split-layout">
       <section className="panel">
+        <button className="back-button" onClick={onBack}><ChevronLeft size={18} /> 더보기</button>
         <h2>리포트 생성</h2>
+        <p className="muted">2주·월 단위로 기간과 학생을 선택해 일괄 생성합니다.</p>
         <div className="two-col">
           <label>시작일<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
           <label>종료일<input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
@@ -999,6 +1017,7 @@ function ReportsScreen({ data, actions }: { data: AppData; actions: AppActions }
 }
 
 function MoreScreen({ data, profile, moreView, setMoreView, actions }: { data: AppData; profile: AppData["profiles"][number] | null; moreView: MoreView; setMoreView: (view: MoreView) => void; actions: AppActions }) {
+  if (moreView === "reports") return <ReportsScreen data={data} actions={actions} onBack={() => setMoreView("menu")} />;
   if (moreView === "payments") return <PaymentsScreen data={data} actions={actions} onBack={() => setMoreView("menu")} />;
   if (moreView === "textbooks") return <TextbooksScreen data={data} actions={actions} onBack={() => setMoreView("menu")} />;
   if (moreView === "outbox") return <OutboxScreen data={data} actions={actions} onBack={() => setMoreView("menu")} />;
@@ -1006,6 +1025,7 @@ function MoreScreen({ data, profile, moreView, setMoreView, actions }: { data: A
   if (moreView === "settings") return <SettingsScreen data={data} profile={profile} actions={actions} onBack={() => setMoreView("menu")} />;
   return (
     <div className="stack">
+      <MenuButton icon={<MessageSquareText size={20} />} title="리포트" detail="2주·월 단위 생성·검토" onClick={() => setMoreView("reports")} />
       <MenuButton icon={<CreditCard size={20} />} title="수강료" detail="결제 입력·월별 집계" onClick={() => setMoreView("payments")} />
       <MenuButton icon={<BookOpen size={20} />} title="교재" detail="교재 등록·배정" onClick={() => setMoreView("textbooks")} />
       <MenuButton icon={<Send size={20} />} title="발송현황" detail="대기·성공·실패 확인" onClick={() => setMoreView("outbox")} />
@@ -1219,9 +1239,13 @@ function LoginScreen({ onLogin, busy, error }: { onLogin: (email: string, passwo
       <form className="login-panel" onSubmit={(event: FormEvent) => { event.preventDefault(); onLogin(email, password); }}>
         <div className="brand-mark"><BookOpen size={28} /></div>
         <h1>GoLesson</h1>
-        <p>사전 등록된 강사 계정으로 로그인</p>
-        <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" required />
-        <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="비밀번호" required />
+        <p>기기마다 처음 한 번 로그인하면 세션이 유지됩니다.</p>
+        <label>이메일
+          <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" required />
+        </label>
+        <label>비밀번호
+          <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="영문+숫자 8자 이상" required />
+        </label>
         {error ? <p className="form-warning">{error}</p> : null}
         <button className="primary-button" disabled={busy}>{busy ? <Loader2 className="spin" size={18} /> : null} 로그인</button>
       </form>
@@ -1556,6 +1580,7 @@ function todayItems(data: AppData, date: string) {
       scheduleSlotId: slot.id,
       startTime: slot.start_time,
       lesson,
+      durationMin: slot.duration_min,
       status: lesson?.status ?? "waiting"
     }];
   });
@@ -1566,9 +1591,46 @@ function todayItems(data: AppData, date: string) {
     scheduleSlotId: null,
     startTime: lesson.started_at,
     lesson,
+    durationMin: null,
     status: lesson.status
   }));
   return [...scheduled, ...makeups].sort((a, b) => String(a.startTime ?? "99:99").localeCompare(String(b.startTime ?? "99:99")));
+}
+
+function groupTodayItems(items: ReturnType<typeof todayItems>) {
+  const groups = new Map<string, { key: string; label: string; items: ReturnType<typeof todayItems> }>();
+  for (const item of items) {
+    const key = item.scheduleSlotId === null ? item.key : `time-${item.startTime}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.items.push(item);
+    } else {
+      groups.set(key, { key, label: formatTime(item.startTime) || "보강", items: [item] });
+    }
+  }
+  return Array.from(groups.values());
+}
+
+function lessonProgressSummary(data: AppData, lessonId: Id): string {
+  return data.progress
+    .filter((progress) => progress.lesson_id === lessonId)
+    .map((progress) => {
+      const assignment = data.studentTextbooks.find((row) => row.id === progress.student_textbook_id);
+      const textbook = assignment ? textbookFor(data, assignment.textbook_id) : null;
+      return `${textbook?.title ?? "교재"} ${progress.from_value}→${progress.to_value}${textbook?.unit_label ?? ""}`;
+    })
+    .join(", ");
+}
+
+function lessonHomeworkSummary(data: AppData, lessonId: Id): string {
+  const rows = data.homeworks.filter((homework) => homework.assigned_lesson_id === lessonId || homework.checked_lesson_id === lessonId);
+  if (rows.length === 0) return "";
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    const label = homeworkStatusLabel(row.status);
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).map(([label, count]) => `${label} ${count}`).join(" · ");
 }
 
 function activeAssignments(data: AppData, studentId: Id, subject: Subject | null): StudentTextbook[] {
@@ -1656,9 +1718,9 @@ function bridgeWarning(data: AppData): string | null {
 
 function statusLabel(status: string): string {
   return ({
-    waiting: "대기",
-    in_progress: "진행",
-    done: "완료",
+    waiting: "코칭 전",
+    in_progress: "코칭 중",
+    done: "코칭 완료",
     canceled: "취소",
     draft: "초안",
     ready: "승인",
@@ -1675,8 +1737,8 @@ function homeworkStatusLabel(status: Homework["status"]): string {
 
 function titleFor(view: View, moreView: MoreView, lessonTarget: LessonTarget | null): string {
   if (lessonTarget) return "수업";
-  if (view !== "more") return ({ today: "오늘", students: "학생", quick: "빠른입력", reports: "리포트" } as Record<View, string>)[view];
-  return ({ menu: "더보기", payments: "수강료", textbooks: "교재", outbox: "발송현황", shortcut: "바로가기", settings: "설정" })[moreView];
+  if (view !== "more") return ({ today: "오늘", students: "학생", quick: "빠른입력" } as Record<View, string>)[view];
+  return ({ menu: "더보기", reports: "리포트", payments: "수강료", textbooks: "교재", outbox: "발송현황", shortcut: "바로가기", settings: "설정" })[moreView];
 }
 
 function onlyNumber(value: string): string {
